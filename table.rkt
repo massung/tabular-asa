@@ -80,19 +80,25 @@
 
 ;; ----------------------------------------------------
 
-(define (table-map proc df k . ks)
-  (let ([columns (for/list ([col (cons k ks)])
-                   (table-column df col))])
+(define (table-map proc df [ks (table-column-names df)] #:drop-na? [drop-na #f])
+  (let ([columns (for/list ([k ks])
+                   (table-column df k))])
     (for/stream ([i (table-index df)])
-      (apply proc (map (λ (v) (vector-ref v i)) columns)))))
+      (let ([xs (map (λ (v) (vector-ref v i)) columns)])
+        (and (or (not drop-na)
+                 (for/and ([x xs]) x))
+             (apply proc xs))))))
 
 ;; ----------------------------------------------------
 
-(define (table-map-index proc df k . ks)
-  (let ([columns (cons (table-keys df) (for/list ([col (cons k ks)])
-                                         (table-column df col)))])
+(define (table-map-index proc df [ks (table-column-names df)] #:drop-na? [drop-na #f])
+  (let ([columns (cons (table-keys df) (for/list ([k ks])
+                                         (table-column df k)))])
     (for/stream ([i (table-index df)])
-      (apply proc (map (λ (v) (vector-ref v i)) columns)))))
+      (let ([xs (map (λ (v) (vector-ref v i)) columns)])
+        (and (or (not drop-na)
+                 (for/and ([x xs]) x))
+             (apply proc xs))))))
 
 ;; ----------------------------------------------------
 
@@ -171,22 +177,29 @@
 
 ;; ----------------------------------------------------
 
-(define (table-drop df . column-names)
+(define (table-drop df ks)
   (struct-copy table
                df
                [columns (filter-not (λ (col)
-                                      (member (car col) column-names))
+                                      (member (car col) ks))
                                     (table-columns df))]))
 
 ;; ----------------------------------------------------
 
-(define (table-cut df . column-names)
+(define (table-drop-na df [ks (table-column-names df)])
+  (let ([all (λ (x . xs)
+               (for/and ([x (cons x xs)]) x))])
+    (table-filter df (table-map all df ks #:drop-na? #t))))
+
+;; ----------------------------------------------------
+
+(define (table-cut df ks)
   (let ([cols (table-columns df)])
     (struct-copy table
                  df
                  [columns (filter identity (map (λ (name)
                                                   (assoc name cols))
-                                                column-names))])))
+                                                ks))])))
 
 ;; ----------------------------------------------------
 
