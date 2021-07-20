@@ -30,7 +30,7 @@
 
     ; create a new column
     (define/private (add-column name)
-      (set! column-order (append column-order (list name)))
+      (set! column-order (append column-order (list (string->symbol (~a name)))))
       (make-vector n #f))
 
     ; advance the row index, increase table size if needed
@@ -64,8 +64,7 @@
     (define/public (build)
       (let ([index (build-index i)])
         (table index (for/list ([k column-order])
-                       (let ([col (string->symbol k)])
-                         (list col (vector-take (hash-ref column-data k) i)))))))))
+                       (list k (vector-take (hash-ref column-data k) i))))))))
 
 ;; ----------------------------------------------------
 

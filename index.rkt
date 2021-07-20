@@ -13,7 +13,7 @@
   #:methods gen:custom-write
   [(define write-proc
      (λ (index port mode)
-       (fprintf port "#<key-index [~a values]>"
+       (fprintf port "#<index [~a values]>"
                 (sequence-length (index-ix index)))))])
 
 ;; ----------------------------------------------------
