@@ -6,6 +6,7 @@
 
 ;; ----------------------------------------------------
 
+(require "index.rkt")
 (require "table.rkt")
 
 ;; ----------------------------------------------------
@@ -61,10 +62,10 @@
 
     ; build the final table
     (define/public (build)
-      (let ([index (build-vector i identity)])
-        (table index index (for/list ([k column-order])
-                             (let ([col (string->symbol k)])
-                               (list col (vector-take (hash-ref column-data k) i)))))))))
+      (let ([index (build-index i)])
+        (table index (for/list ([k column-order])
+                       (let ([col (string->symbol k)])
+                         (list col (vector-take (hash-ref column-data k) i)))))))))
 
 ;; ----------------------------------------------------
 

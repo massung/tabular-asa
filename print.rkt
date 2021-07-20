@@ -1,5 +1,6 @@
 #lang racket
 
+(require "index.rkt")
 (require "read.rkt")
 (require "table.rkt")
 
@@ -18,21 +19,21 @@
 
 (define (column-preview df k [n (table-print-size)])
   (if (or (not n) (<= (table-length df) n))
-      (column-stream df k)
+      (index->stream (table-column df k))
       (let ([n (quotient n 2)])
-        (stream-append (column-stream (table-head df n) k)
+        (stream-append (index->stream (table-column (table-head df n) k))
                        (stream "...")
-                       (column-stream (table-tail df n) k)))))
+                       (index->stream (table-column (table-tail df n) k))))))
 
 ;; ----------------------------------------------------
 
 (define (index-preview df [n (table-print-size)])
   (if (or (not n) (<= (table-length df) n))
-      (key-stream df)
+      (index->stream (table-index df))
       (let ([n (quotient n 2)])
-        (stream-append (key-stream (table-head df n))
+        (stream-append (index->stream (table-index (table-head df n)))
                        (stream "..")
-                       (key-stream (table-tail df n))))))
+                       (index->stream (table-index (table-tail df n)))))))
 
 ;; ----------------------------------------------------
 
