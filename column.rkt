@@ -5,15 +5,16 @@
 
 ;; ----------------------------------------------------
 
-(struct column [index keys]
+(struct column [name index data]
   #:property prop:sequence
-  (λ (col) (column-index col))
+  (λ (col) (column->stream col))
 
   ; custom printing
   #:methods gen:custom-write
   [(define write-proc
      (λ (col port mode)
-       (fprintf port "#<column [~a values]>"
+       (fprintf port "#<column ~a [~a values]>"
+                (column-name col)
                 (sequence-length (column-index col)))))])
 
 ;; ----------------------------------------------------
@@ -38,13 +39,13 @@
 
 ;; ----------------------------------------------------
 
-(define empty-column (column #() #()))
+(define empty-column (column 'emtpy #() #()))
 
 ;; ----------------------------------------------------
 
-(define (make-column n)
+(define (make-column n #:name [name #f])
   (let ([ix (build-vector n identity)])
-    (column ix ix)))
+    (column (or name (gensym "col")) ix ix)))
 
 ;; ----------------------------------------------------
 
@@ -53,8 +54,15 @@
 
 ;; ----------------------------------------------------
 
+(define (column-renamed col [name #f])
+  (struct-copy column
+               col
+               [name (or name (gensym "col"))]))
+
+;; ----------------------------------------------------
+
 (define (column-ref col n)
-  (vector-ref (column-keys col) (vector-ref (column-index col) n)))
+  (vector-ref (column-data col) (vector-ref (column-index col) n)))
 
 ;; ----------------------------------------------------
 
@@ -64,10 +72,17 @@
           [x (column->stream col)])
       (vector-set! v n (proc x)))
 
-    ; create a new index with different keys
+    ; create a new index with different data
     (struct-copy column
                  col
-                 [keys v])))
+                 [data v])))
+
+;; ----------------------------------------------------
+
+(define (column-filter proc col)
+  (struct-copy column
+               col
+               [index (vector-filter proc (column-index col))]))
 
 ;; ----------------------------------------------------
 

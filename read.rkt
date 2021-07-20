@@ -6,7 +6,7 @@
 
 ;; ----------------------------------------------------
 
-(require "index.rkt")
+(require "column.rkt")
 (require "table.rkt")
 
 ;; ----------------------------------------------------
@@ -30,7 +30,8 @@
 
     ; create a new column
     (define/private (add-column name)
-      (set! column-order (append column-order (list (string->symbol (~a name)))))
+      (let ([column-name (string->symbol (~a name))])
+        (set! column-order (append column-order (list column-name))))
       (make-vector n #f))
 
     ; advance the row index, increase table size if needed
@@ -62,9 +63,12 @@
 
     ; build the final table
     (define/public (build)
-      (let ([index (build-index i)])
-        (table index (for/list ([k column-order])
-                       (list k (vector-take (hash-ref column-data k) i))))))))
+      (let* ([ix (build-vector i identity)]
+             [index (column (index-column) ix ix)])
+        (table index
+               (for/list ([k column-order])
+                 (let ([v (vector-take (hash-ref column-data k) i)])
+                   (column k (column-index index) v))))))))
 
 ;; ----------------------------------------------------
 
@@ -112,7 +116,7 @@
 
                        ; create a list of column names/indices
                        [column-names (if header
-                                         first-row
+                                         (map string->symbol first-row)
                                          (for/list ([i (range (length first-row))])
                                            (string->symbol (format "_~a" i))))]
 
