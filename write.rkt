@@ -5,6 +5,7 @@
 
 ;; ----------------------------------------------------
 
+(require "print.rkt")
 (require "read.rkt")
 (require "table.rkt")
 
@@ -28,6 +29,16 @@
 
     ; unknown destination type
     [#t (error "Invalid output-port or filename:" port-or-filename)]))
+
+;; ----------------------------------------------------
+
+(define (table-write/string df
+                            [port-or-filename (current-output-port)]
+                            #:keep-index? [keep-index #t])
+  (table-write port-or-filename
+               (λ (port)
+                 (parameterize ([table-print-size #f])
+                   (display-table df port #:keep-index? keep-index)))))
 
 ;; ----------------------------------------------------
 

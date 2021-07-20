@@ -5,6 +5,7 @@
 ;; ----------------------------------------------------
 
 (provide (all-defined-out)
+         (except-out (struct-out index-stream))
          (except-out (struct-out row-stream)))
 
 ;; ----------------------------------------------------
@@ -24,6 +25,22 @@
        (fprintf port "#<table [~a rows x ~a cols]>"
                 (sequence-length (table-index df))
                 (sequence-length (table-columns df)))))])
+
+;; ----------------------------------------------------
+
+(struct index-stream [i index keys]
+  #:methods gen:stream
+  [(define (stream-empty? s)
+     (>= (index-stream-i s) (vector-length (index-stream-index s))))
+
+   ; get the key for this index
+   (define (stream-first s)
+     (let ([n (vector-ref (index-stream-index s) (index-stream-i s))])
+       (vector-ref (index-stream-keys s) n)))
+
+   ; advance to the next index
+   (define (stream-rest s)
+     (struct-copy index-stream s [i (add1 (index-stream-i s))]))])
 
 ;; ----------------------------------------------------
 
@@ -70,6 +87,21 @@
 
 ;; ----------------------------------------------------
 
+(define (key-stream df)
+  (index-stream 0 (table-index df) (table-keys df)))
+
+;; ----------------------------------------------------
+
+(define (column-stream df k)
+  (let ([col (findf (λ (col) (eq? k (car col))) (table-columns df))])
+    (and col (index-stream 0 (table-index df) (second col)))))
+
+;; ----------------------------------------------------
+
+(define empty-table (table #() #() '()))
+
+;; ----------------------------------------------------
+
 (define (table-for-each proc df #:keep-index? [keep-index #t])
   (stream-for-each proc (table->row-stream df #:keep-index? keep-index)))
 
@@ -102,22 +134,9 @@
 
 ;; ----------------------------------------------------
 
-(define (write-table df #:keep-index? [keep-index #t])
-  (table-for-each println df #:keep-index? keep-index))
-
-;; ----------------------------------------------------
-
-(define (preview-table df [n 5] #:keep-index? [keep-index #t])
-  (if (<= (table-length df) (* n 2))
-      (write-table df #:keep-index? keep-index)
-      (begin
-        (write-table (table-head df n) #:keep-index? keep-index)
-        (displayln "'(...)")
-        (write-table (table-tail df n) #:keep-index? keep-index))))
-
-;; ----------------------------------------------------
-
-(define empty-table (table #() #() '()))
+(define (table-shape df)
+  (values (sequence-length (table-index df))
+          (sequence-length (table-columns df))))
 
 ;; ----------------------------------------------------
 
@@ -137,12 +156,8 @@
 
 ;; ----------------------------------------------------
 
-(define (table-column df name-or-index)
-  (let ([col (if (integer? name-or-index)
-                 (list-ref (table-columns df) name-or-index)
-                 (findf (λ (col)
-                          (eq? name-or-index (car col)))
-                        (table-columns df)))])
+(define (table-column df k)
+  (let ([col (findf (λ (col) (eq? k (car col))) (table-columns df))])
     (and col (second col))))
 
 ;; ----------------------------------------------------
@@ -160,6 +175,11 @@
                    (if keep-index (cons #t names) names))])
     (for/hash ([k columns] [v (table-row df i)])
       (values k v))))
+
+;; ----------------------------------------------------
+
+(define (table-clear df)
+  (struct-copy table df [index #()]))
 
 ;; ----------------------------------------------------
 
@@ -227,13 +247,21 @@
 
 ;; ----------------------------------------------------
 
+(define (table-reverse df)
+  (let* ([ix (table-index df)]
+         [n (vector-length ix)])
+    (struct-copy table df [index (build-vector n (λ (i)
+                                                   (vector-ref ix (- n i 1))))])))
+
+;; ----------------------------------------------------
+
 (define (table-with-column df seq #:name [name #f])
   (let ([name (or name (gensym "col"))])
     (if (empty? (table-columns df))
         (let* ([v (for/vector ([x seq]) x)]
                
                ; build the initial index + keys
-               [i (build-vector (vector-length v) (λ (i) i))])
+               [i (build-vector (vector-length v) identity)])
           (table i i (list (list name v))))
 
         ; use the existing index to build the new column
