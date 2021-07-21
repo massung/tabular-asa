@@ -5,28 +5,15 @@
 
 ;; ----------------------------------------------------
 
-(struct index [ix keys]
-  #:property prop:sequence
-  (λ (index) (index-ix index))
-
-  ; custom printing
-  #:methods gen:custom-write
-  [(define write-proc
-     (λ (index port mode)
-       (fprintf port "#<index [~a values]>"
-                (sequence-length (index-ix index)))))])
-
-;; ----------------------------------------------------
-
-(struct index-stream [index n]
+(struct index-stream [ix data n]
   #:methods gen:stream
   [(define (stream-empty? s)
-     (let ([ix (index-ix (index-stream-index s))])
-       (>= (index-stream-n s) (vector-length ix))))
+     (>= (index-stream-n s) (vector-length (index-stream-ix s))))
 
    ; get the key for this index
    (define (stream-first s)
-     (index-ref (index-stream-index s) (index-stream-n s)))
+     (let ([i (vector-ref (index-stream-ix s) (index-stream-n s))])
+       (vector-ref (index-stream-data s) i)))
 
    ; advance to the next index
    (define (stream-rest s)
@@ -34,71 +21,64 @@
 
 ;; ----------------------------------------------------
 
-(define (index->stream i)
-  (index-stream i 0))
+(define (index->stream ix data)
+  (index-stream ix data 0))
 
 ;; ----------------------------------------------------
 
-(define empty-index (index #() #()))
+(define empty-index #())
 
 ;; ----------------------------------------------------
 
 (define (build-index n)
-  (let ([ix (build-vector n identity)])
-    (index ix ix)))
+  (build-vector n identity))
 
 ;; ----------------------------------------------------
 
-(define (index-length i)
-  (vector-length (index-ix i)))
+(define index-length vector-length)
 
 ;; ----------------------------------------------------
 
-(define (index-ref i n)
-  (vector-ref (index-keys i) (vector-ref (index-ix i) n)))
+(define index-empty? vector-empty?)
 
 ;; ----------------------------------------------------
 
-(define (index-map proc i)
-  (let ([v (make-vector (index-length i) #f)])
-    (for ([n (in-naturals)]
-          [x (index->stream i)])
-      (vector-set! v n (proc x)))
-
-    ; create a new index with different keys
-    (struct-copy index
-                 i
-                 [keys v])))
+(define (index-ref ix v n)
+  (vector-ref v (vector-ref ix n)))
 
 ;; ----------------------------------------------------
 
-(define (index-head i n)
-  (struct-copy index
-               i
-               [ix (vector-take (index-ix i)
-                                (min (index-length i) n))]))
+(define (index-for-each proc ix v)
+  (for ([i ix])
+    (proc (vector-ref v i))))
 
 ;; ----------------------------------------------------
 
-(define (index-tail i n)
-  (struct-copy index
-               i
-               [ix (vector-take-right (index-ix i)
-                                      (min (index-length i) n))]))
+(define (index-map proc ix v)
+  (vector-map (λ (i) (proc (vector-ref v i))) ix))
 
 ;; ----------------------------------------------------
 
-(define (index-reverse i)
-  (let* ([v (index-ix i)]
-         [n (vector-length v)])
-    (struct-copy index
-                 i
-                 [ix (build-vector n (λ (i) (vector-ref v (- n i 1))))])))
+(define (index-filter proc ix v)
+  (vector-filter (λ (i) (proc (vector-ref v i))) ix))
 
 ;; ----------------------------------------------------
 
-(define (index-sort i less-than?)
-  (let ([key (λ (n) (index-ref i n))])
-    (struct-copy index
-                 i
-                 [ix (vector-sort (index-ix i) less-than? #:key key)])))
+(define (index-head ix n)
+  (vector-take ix (min (index-length ix) n)))
+
+;; ----------------------------------------------------
+
+(define (index-tail ix n)
+  (vector-take-right ix (min (index-length ix) n)))
+
+;; ----------------------------------------------------
+
+(define (index-reverse ix)
+  (let ([n (index-length ix)])
+    (build-vector n (λ (i) (vector-ref ix (- n i 1))))))
+
+;; ----------------------------------------------------
+
+(define (index-sort ix v less-than?)
+  (vector-sort ix less-than? #:key (λ (n) (index-ref ix v n))))

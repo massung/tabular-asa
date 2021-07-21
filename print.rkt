@@ -29,11 +29,11 @@
 
 (define (index-preview df [n (table-print-size)])
   (if (or (not n) (<= (table-length df) n))
-      (column->stream (table-index df))
+      (column->stream (table-key-column df))
       (let ([n (quotient n 2)])
-        (stream-append (column->stream (table-index (table-head df n)))
+        (stream-append (column->stream (table-key-column (table-head df n)))
                        (stream "..")
-                       (column->stream (table-index (table-tail df n)))))))
+                       (column->stream (table-key-column (table-tail df n)))))))
 
 ;; ----------------------------------------------------
 
