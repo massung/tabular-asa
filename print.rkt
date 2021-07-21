@@ -29,11 +29,11 @@
 
 (define (index-preview df [n (table-print-size)])
   (if (or (not n) (<= (table-length df) n))
-      (column->stream (table-key-column df))
+      (column->stream (table-pk df))
       (let ([n (quotient n 2)])
-        (stream-append (column->stream (table-key-column (table-head df n)))
+        (stream-append (column->stream (table-pk (table-head df n)))
                        (stream "..")
-                       (column->stream (table-key-column (table-tail df n)))))))
+                       (column->stream (table-pk (table-tail df n)))))))
 
 ;; ----------------------------------------------------
 
@@ -57,7 +57,8 @@
                      [port (current-output-port)]
                      [mode #t]
                      #:keep-index? [keep-index #t])
-  (let* ([index-format (column-formatter (index-column) (index-preview df) mode)]
+  (let* ([index-format (let ([k (column-name (table-pk df))])
+                         (column-formatter k (index-preview df) mode))]
 
          ; formatters for each column
          [column-formats (for/list ([k (table-column-names df)])
@@ -73,7 +74,7 @@
                        (newline port))])
 
     ; write the header
-    (row-format (index-column) (table-column-names df))
+    (row-format (column-name (table-pk df)) (table-column-names df))
 
     ; write all the column previews
     (letrec ([zip-columns (λ (xs)

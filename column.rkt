@@ -31,12 +31,24 @@
 
 ;; ----------------------------------------------------
 
+(define (build-index-column n #:name [name '||])
+  (let ([ix (build-index n)])
+    (column name ix ix)))
+
+;; ----------------------------------------------------
+
+(define (build-column seq #:name [name #f])
+  (let ([data (for/vector ([x seq]) x)])
+    (column (or name (gensym "col")) (build-index (vector-length data)) data)))
+
+;; ----------------------------------------------------
+
 (define (column-length col)
   (index-length (column-index col)))
 
 ;; ----------------------------------------------------
 
-(define (column-renamed col [name #f])
+(define (column-rename col [name #f])
   (struct-copy column
                col
                [name (or name (gensym "col"))]))
@@ -49,12 +61,30 @@
 ;; ----------------------------------------------------
 
 (define (column-map proc col)
-  (index-map proc (column-index col) (column-data col)))
+  (struct-copy column
+               col
+               [index (index-map proc (column-index col) (column-data col))]))
 
 ;; ----------------------------------------------------
 
 (define (column-filter proc col)
-  (index-filter proc (column-index col) (column-data col)))
+  (struct-copy column
+               col
+               [index (index-filter proc (column-index col) (column-data col))]))
+
+;; ----------------------------------------------------
+
+(define (column-head col [n 10])
+  (struct-copy column
+               col
+               [index (index-head (column-index col) n)]))
+
+;; ----------------------------------------------------
+
+(define (column-tail col [n 10])
+  (struct-copy column
+               col
+               [index (index-tail (column-index col) n)]))
 
 ;; ----------------------------------------------------
 

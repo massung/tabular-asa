@@ -5,6 +5,7 @@
 
 ;; ----------------------------------------------------
 
+(require "column.rkt")
 (require "print.rkt")
 (require "read.rkt")
 (require "table.rkt")
@@ -78,8 +79,9 @@
 
                    ; write the header?
                    (when header
-                     (let ([cols (table-column-names df)])
-                       (apply write-row (if keep-index (cons (index-column) cols) cols))))
+                     (let ([cols (table-column-names df)]
+                           [index (column-name (table-pk df))])
+                       (apply write-row (if keep-index (cons index cols) cols))))
 
                    ; write each row
                    (table-for-each-apply write-row df #:keep-index? keep-index)))))
@@ -120,8 +122,13 @@
 
                      ; {"col": [x1, x2, ...], ...}
                      ('columns
-                      (let ([jsexpr (for/hash ([col (table-columns df)])
-                                      (values (first col) (sequence->list (second col))))])
+                      (let* ([cols (let ([ks (table-columns df)])
+                                     (if keep-index (cons (table-pk df) ks) ks))]
+
+                             ; build the json object
+                             [jsexpr (for/hash ([col cols])
+                                       (values (column-name col)
+                                               (sequence->list (column-data col))))])
                         (write-json jsexpr port)))
   
                      ; unknown format

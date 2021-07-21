@@ -50,17 +50,17 @@
 
 (define (index-for-each proc ix v)
   (for ([i ix])
-    (proc (vector-ref v i))))
+    (proc i (vector-ref v i))))
 
 ;; ----------------------------------------------------
 
 (define (index-map proc ix v)
-  (vector-map (λ (i) (proc (vector-ref v i))) ix))
+  (vector-map (λ (i) (proc i (vector-ref v i))) ix))
 
 ;; ----------------------------------------------------
 
 (define (index-filter proc ix v)
-  (vector-filter (λ (i) (proc (vector-ref v i))) ix))
+  (vector-filter (λ (i) (proc i (vector-ref v i))) ix))
 
 ;; ----------------------------------------------------
 

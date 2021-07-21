@@ -64,9 +64,8 @@
 
     ; build the final table
     (define/public (build)
-      (let ([ix (build-index i)])
-        (table ix
-               ix
+      (let ([pk (build-index-column i)])
+        (table pk
                (for/list ([k column-order])
                  (cons k (vector-take (hash-ref column-data k) i))))))))
 
