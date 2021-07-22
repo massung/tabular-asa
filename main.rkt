@@ -25,6 +25,7 @@ All rights reserved.
  index->stream
  index-length
  index-empty?
+ index-compact
  index-ref
  index-for-each
  index-map
@@ -38,6 +39,8 @@ All rights reserved.
  (struct-out column)
  column->stream
  column-length
+ column-empty?
+ column-compact
  column-rename
  column-ref
  column-for-each
@@ -75,6 +78,7 @@ All rights reserved.
  table-length
  table-empty?
  table-index
+ table-compact
  table-for-each
  table-map
  table-columns

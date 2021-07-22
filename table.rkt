@@ -65,26 +65,56 @@
 
 ;; ----------------------------------------------------
 
-(define (table-index df)
-  (column-index (table-pk df)))
-
-;; ----------------------------------------------------
-
 (define (table-empty? df)
   (or (zero? (table-length df))
       (empty? (table-column-data df))))
 
 ;; ----------------------------------------------------
 
-(define (table-for-each proc df #:keep-index? [keep-index #t])
-  (stream-for-each (λ (row) (apply proc row))
-                   (table->row-stream df #:keep-index? keep-index)))
+(define (table-index df)
+  (column-index (table-pk df)))
 
 ;; ----------------------------------------------------
 
-(define (table-map proc df #:keep-index? [keep-index #t])
-  (let ([rows (table->row-stream df #:keep-index? keep-index)])
+(define (table-compact df #:reindex? [reindex #t])
+  (let ([ix (table-index df)])
+    (table (if reindex
+               (build-index-column (index-length ix))
+               (column-compact (table-pk df)))
+           (for/list ([col (table-column-data df)])
+             (match col
+               [(cons name data)
+                (cons name (index-compact ix data))])))))
+
+;; ----------------------------------------------------
+
+(define (table-for-each proc df [cut #f] #:keep-index? [keep-index #t])
+  (stream-for-each (λ (row) (apply proc row))
+                   (let ([df-cut (if cut (table-cut df cut) df)])
+                     (table->row-stream df-cut #:keep-index? keep-index))))
+
+;; ----------------------------------------------------
+
+(define (table-map proc df [cut #f] #:keep-index? [keep-index #t])
+  (let* ([df-cut (if cut (table-cut df cut) df)]
+         [rows (table->row-stream df-cut #:keep-index? keep-index)])
     (stream-map (λ (row) (apply proc row)) rows)))
+
+;; ----------------------------------------------------
+
+(define (table-filter proc df [cut #f] #:keep-index? [keep-index #t])
+  (let ([pk (table-pk df)])
+    (struct-copy table
+                 df
+                 [pk (struct-copy column
+                                  pk
+                                  [index (for/vector ([i (column-index pk)]
+                                                      [f (table-map proc
+                                                                    df
+                                                                    cut
+                                                                    #:keep-index? keep-index)]
+                                                      #:when f)
+                                           i)])])))
 
 ;; ----------------------------------------------------
 
@@ -157,19 +187,6 @@
                  df
                  [column-data (filter identity
                                       (map (λ (name) (assq name cols)) ks))])))
-
-;; ----------------------------------------------------
-
-(define (table-filter df seq)
-  (let ([pk (table-pk df)])
-    (struct-copy table
-                 df
-                 [pk (struct-copy column
-                                  pk
-                                  [index (for/vector ([i (column-index pk)]
-                                                      [f seq]
-                                                      #:when f)
-                                           i)])])))
 
 ;; ----------------------------------------------------
 

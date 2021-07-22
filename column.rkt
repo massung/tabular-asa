@@ -48,6 +48,20 @@
 
 ;; ----------------------------------------------------
 
+(define (column-empty? col)
+  (zero? (column-length col)))
+
+;; ----------------------------------------------------
+
+(define (column-compact col)
+  (let ([ix (column-index col)])
+    (struct-copy column
+                 col
+                 [index (build-index (index-length ix))]
+                 [data (index-compact ix (column-data col))])))
+
+;; ----------------------------------------------------
+
 (define (column-rename col [name #f])
   (struct-copy column
                col

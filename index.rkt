@@ -43,6 +43,12 @@
 
 ;; ----------------------------------------------------
 
+(define (index-compact ix v)
+  (for/vector ([i ix])
+    (vector-ref v i)))
+
+;; ----------------------------------------------------
+
 (define (index-ref ix v n)
   (vector-ref v (vector-ref ix n)))
 
