@@ -55,6 +55,7 @@ All rights reserved.
  secondary-index->index
  secondary-index-length
  secondary-index-empty?
+ secondary-index-count
  secondary-index-find
  secondary-index-member
  secondary-index-ref

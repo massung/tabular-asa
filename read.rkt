@@ -141,7 +141,7 @@
 
 ;; ----------------------------------------------------
 
-(define (table-read/json port-or-filename #:lines [lines #f])
+(define (table-read/json port-or-filename #:lines? [lines #f])
   (table-read port-or-filename
               (λ (port)
                 (let ([builder (new table-builder%)])

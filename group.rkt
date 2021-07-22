@@ -113,6 +113,12 @@
 
 ;; ----------------------------------------------------
 
+(define (secondary-index-count ix)
+  (for/sum ([key (secondary-index-keys ix)])
+    (length (cdr key))))
+
+;; ----------------------------------------------------
+
 (define (secondary-index-find ix key [exact #t])
   (let* ([keys (secondary-index-keys ix)]
          [n (vector-length keys)]
@@ -171,7 +177,9 @@
 ;; ----------------------------------------------------
 
 (define (secondary-index-mean ix)
-  (/ (for/sum ([x (secondary-index-keys ix)]) x) (secondary-index-length ix)))
+  (/ (for/sum ([key (secondary-index-keys ix)])
+       (car key))
+     (secondary-index-length ix)))
 
 ;; ----------------------------------------------------
 
@@ -191,4 +199,3 @@
       (if (<= count n)
           (values k n)
           (values key count)))))
-  
