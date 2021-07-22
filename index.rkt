@@ -81,4 +81,4 @@
 ;; ----------------------------------------------------
 
 (define (index-sort ix v less-than?)
-  (vector-sort ix less-than? #:key (λ (n) (index-ref ix v n))))
+  (vector-sort ix less-than? #:key (λ (n) (vector-ref v n))))

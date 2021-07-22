@@ -66,6 +66,7 @@ All rights reserved.
  secondary-index-mode
 
  ; table
+ (struct-out table)
  empty-table
  table-with-column
  table->row-stream
