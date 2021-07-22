@@ -208,12 +208,12 @@
 
 ;; ----------------------------------------------------
 
-(define (table-with-index df seq #:name [name #f])
+(define (table-with-index df seq #:name [name '||])
   (let ([pk (table-pk df)])
     (struct-copy table
                  df
                  [pk (let ([ix (for/vector ([i seq]) i)])
-                       (column (or name '||) ix (column-data pk)))])))
+                       (column name ix (column-data pk)))])))
 
 ;; ----------------------------------------------------
 
