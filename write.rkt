@@ -84,7 +84,7 @@
                        (apply write-row (if keep-index (cons index cols) cols))))
 
                    ; write each row
-                   (table-for-each-apply write-row df #:keep-index? keep-index)))))
+                   (table-for-each write-row df #:keep-index? keep-index)))))
 
 ;; ----------------------------------------------------
 

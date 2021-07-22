@@ -26,7 +26,7 @@
     (define column-order '())
 
     ; table size and next row index
-    (define n 1000)
+    (define n 5000)
     (define i 0)
 
     ; create a new column

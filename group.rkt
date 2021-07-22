@@ -6,7 +6,6 @@
 ;; ----------------------------------------------------
 
 (provide (all-defined-out)
-         (except-out (struct-out secondary-index))
          (except-out (struct-out secondary-index-stream)))
 
 ;; ----------------------------------------------------
@@ -51,10 +50,10 @@
   
 ;; ----------------------------------------------------
 
-(define (secondary-index->stream ix [from #f] [to #f])
+(define (secondary-index->stream ix #:from [from #f] #:to [to #f])
   (let* ([n (secondary-index-length ix)]
-         [start (if from (secondary-index-find ix from) 0)]
-         [end (if to (secondary-index-find ix to) n)])
+         [start (if from (secondary-index-find ix from #f) 0)]
+         [end (if to (secondary-index-find ix to #f) n)])
     (if (<= (- end start) 0)
         (secondary-index-stream 0 0 #() #f)
         (secondary-index-stream start
@@ -114,13 +113,13 @@
 
 ;; ----------------------------------------------------
 
-(define (secondary-index-find ix key)
+(define (secondary-index-find ix key [exact #t])
   (let* ([keys (secondary-index-keys ix)]
          [n (vector-length keys)]
          [less-than? (secondary-index-less-than? ix)])
     (if (not less-than?)
 
-        ; unsorted - just O(n) search the keyspace
+        ; unsorted - just O(n) search the keyspace (must be exact)
         (for/first ([k keys] [i (range n)] #:when (equal? (car k) key)) i)
 
         ; sorted index, so it's possible to binary search
@@ -129,16 +128,17 @@
                              (cond
                                [(equal? key (car group)) i]
 
-                               ; nothing more to search
-                               [(>= (add1 i) end) #f]
+                               ; nothing more to search?
+                               [(>= (add1 i) end)
+                                (if exact #f end)]
 
-                               ; search left half?
+                               ; search the left or right half?
                                [else (if (less-than? key (car group))
-                                         (let ([ni (quotient (+ start i) 2)])
+                                         (let ([ni (arithmetic-shift (+ start i) -1)])
                                            (search ni start i))
-                                         (let ([ni (quotient (+ i end) 2)])
+                                         (let ([ni (arithmetic-shift (+ i end) -1)])
                                            (search ni i end)))])))])
-          (search (quotient n 2) 0 n)))))
+          (search (arithmetic-shift n -1) 0 n)))))
 
 ;; ----------------------------------------------------
 

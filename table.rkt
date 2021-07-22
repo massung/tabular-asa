@@ -77,12 +77,8 @@
 ;; ----------------------------------------------------
 
 (define (table-for-each proc df #:keep-index? [keep-index #t])
-  (stream-for-each proc (table->row-stream df #:keep-index? keep-index)))
-
-;; ----------------------------------------------------
-
-(define (table-for-each-apply proc df #:keep-index? [keep-index #t])
-  (table-for-each (λ (row) (apply proc row)) df #:keep-index? keep-index))
+  (stream-for-each (λ (row) (apply proc row))
+                   (table->row-stream df #:keep-index? keep-index)))
 
 ;; ----------------------------------------------------
 
@@ -192,6 +188,15 @@
   (struct-copy table
                (if drop (table-drop df (list k)) df)
                [pk (table-column df k)]))
+
+;; ----------------------------------------------------
+
+(define (table-with-index df seq #:name [name #f])
+  (let ([pk (table-pk df)])
+    (struct-copy table
+                 df
+                 [pk (let ([ix (for/vector ([i seq]) i)])
+                       (column (or name '||) ix (column-data pk)))])))
 
 ;; ----------------------------------------------------
 
