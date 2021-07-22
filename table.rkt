@@ -1,11 +1,8 @@
 #lang racket
 
-(require racket/struct)
-
-;; ----------------------------------------------------
-
 (require "index.rkt")
 (require "column.rkt")
+(require "group.rkt")
 (require "utils.rkt")
 
 ;; ----------------------------------------------------
@@ -58,22 +55,6 @@
 
 ;; ----------------------------------------------------
 
-(define (table-for-each proc df #:keep-index? [keep-index #t])
-  (stream-for-each proc (table->row-stream df #:keep-index? keep-index)))
-
-;; ----------------------------------------------------
-
-(define (table-for-each-apply proc df #:keep-index? [keep-index #t])
-  (table-for-each (λ (row) (apply proc row)) df #:keep-index? keep-index))
-
-;; ----------------------------------------------------
-
-(define (table-map proc df #:keep-index? [keep-index #t])
-  (let ([rows (table->row-stream df #:keep-index? keep-index)])
-    (stream-map (λ (row) (apply proc row)) rows)))
-
-;; ----------------------------------------------------
-
 (define (table-length df)
   (column-length (table-pk df)))
 
@@ -92,6 +73,22 @@
 (define (table-empty? df)
   (or (zero? (table-length df))
       (empty? (table-column-data df))))
+
+;; ----------------------------------------------------
+
+(define (table-for-each proc df #:keep-index? [keep-index #t])
+  (stream-for-each proc (table->row-stream df #:keep-index? keep-index)))
+
+;; ----------------------------------------------------
+
+(define (table-for-each-apply proc df #:keep-index? [keep-index #t])
+  (table-for-each (λ (row) (apply proc row)) df #:keep-index? keep-index))
+
+;; ----------------------------------------------------
+
+(define (table-map proc df #:keep-index? [keep-index #t])
+  (let ([rows (table->row-stream df #:keep-index? keep-index)])
+    (stream-map (λ (row) (apply proc row)) rows)))
 
 ;; ----------------------------------------------------
 
@@ -144,17 +141,17 @@
 
 ;; ----------------------------------------------------
 
+(define (table-drop-na df [ks (table-column-names df)])
+  (table-filter df (table-map all? (table-cut df ks))))
+
+;; ----------------------------------------------------
+
 (define (table-drop df ks)
   (struct-copy table
                df
                [column-data (filter-not (λ (col)
                                           (member (car col) ks))
                                         (table-column-data df))]))
-
-;; ----------------------------------------------------
-
-(define (table-drop-na df [ks (table-column-names df)])
-  (table-filter df (table-map all? (table-cut df ks))))
 
 ;; ----------------------------------------------------
 
@@ -184,12 +181,10 @@
   (let ([pk (table-pk df)])
     (struct-copy table
                  df
-                 [pk (let ([col (table-column df k)])
+                 [pk (let ([sorted (column-sort (table-column df k) less-than?)])
                        (struct-copy column
                                     pk
-                                    [index (index-sort (column-index pk)
-                                                       (column-data col)
-                                                       less-than?)]))])))
+                                    [index (column-index sorted)]))])))
 
 ;; ----------------------------------------------------
 
@@ -197,6 +192,17 @@
   (struct-copy table
                (if drop (table-drop df (list k)) df)
                [pk (table-column df k)]))
+
+;; ----------------------------------------------------
+
+(define (table-distinct df k [keep 'first])
+  (let ([col (table-column df k)])
+    (struct-copy table
+                 df
+                 [pk (let ([ix (build-secondary-index col #f keep)])
+                       (struct-copy column
+                                    (table-pk df)
+                                    [index (secondary-index->index ix)]))])))
 
 ;; ----------------------------------------------------
 

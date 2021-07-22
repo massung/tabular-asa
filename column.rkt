@@ -60,10 +60,13 @@
 
 ;; ----------------------------------------------------
 
+(define (column-for-each proc col)
+  (index-for-each proc (column-index col) (column-data col)))
+
+;; ----------------------------------------------------
+
 (define (column-map proc col)
-  (struct-copy column
-               col
-               [index (index-map proc (column-index col) (column-data col))]))
+  (index-map proc (column-index col) (column-data col)))
 
 ;; ----------------------------------------------------
 
