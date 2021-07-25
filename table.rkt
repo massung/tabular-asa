@@ -11,7 +11,7 @@
 
 ;; ----------------------------------------------------
 
-(struct table [pk column-data]
+(struct table [pk column-data indexes]
   #:property prop:sequence
   (λ (df) (table->row-stream df))
 
@@ -25,19 +25,17 @@
 
 ;; ----------------------------------------------------
 
-(define (table->row-stream df #:keep-index? [keep-index #t])
-  (let* ([key-stream (column->stream (table-pk df))]
-
-         ; create a stream per column
-         [cols (map column->stream (table-columns df))]
-
-         ; optionally prepend the index
-         [streams (if keep-index (cons key-stream cols) cols)])
-    (stream-zip streams)))
+(define (table->row-stream df [index #f] #:keep-index? [keep-index #t])
+  (let ([key-stream (column->stream (table-pk df))])
+    (stream-map (λ (i)
+                  (table-row df i #:keep-index? keep-index))
+                (sequence->stream (if index
+                                      index
+                                      (table-index df))))))
 
 ;; ----------------------------------------------------
 
-(define (table->record-stream df #:keep-index? [keep-index #t])
+(define (table->record-stream df [index #f] #:keep-index? [keep-index #t])
   (let* ([columns (table-column-names df)]
 
          ; optionally prepend the index column name
@@ -47,11 +45,11 @@
          [row->record (λ (row)
                         (for/hash ([k ks] [v row])
                           (values k v)))])
-    (stream-map row->record (table->row-stream df #:keep-index? keep-index))))
+    (stream-map row->record (table->row-stream df index #:keep-index? keep-index))))
 
 ;; ----------------------------------------------------
 
-(define empty-table (table (column null #() #()) '()))
+(define empty-table (table (column null #() #()) '() #hash()))
 
 ;; ----------------------------------------------------
 
@@ -71,8 +69,14 @@
 
 ;; ----------------------------------------------------
 
-(define (table-index df)
-  (column-index (table-pk df)))
+(define (table-index df [k #f] [less-than? #f])
+  (if k
+      (hash-ref! (table-indexes df)
+                 (list k less-than?)
+                 (λ ()
+                   (let ([col (table-column df k)])
+                     (build-secondary-index col less-than?))))
+      (column-index (table-pk df))))
 
 ;; ----------------------------------------------------
 
@@ -140,8 +144,9 @@
 ;; ----------------------------------------------------
 
 (define (table-row df n #:keep-index? [keep-index #t])
-  (let ([row (for/list ([col (table-columns df)])
-               (column-ref col n))])
+  (let* ([ix (table-index df)]
+         [row (for/list ([col (table-column-data df)])
+                (index-ref ix (cdr col) n))])
     (if keep-index (cons (column-ref (table-pk df) n) row) row)))
 
 ;; ----------------------------------------------------
@@ -186,7 +191,12 @@
     (struct-copy table
                  df
                  [column-data (filter identity
-                                      (map (λ (name) (assq name cols)) ks))])))
+                                      (for/list ([k ks])
+                                        (match k
+                                          [(list org as)
+                                           (cons as (cdr (assq org cols)))]
+                                          [else
+                                           (assq k cols)])))])))
 
 ;; ----------------------------------------------------
 
@@ -232,33 +242,3 @@
   (struct-copy table
                df
                [pk (column-reverse (table-pk df))]))
-
-;; ----------------------------------------------------
-
-(define (table-with-column df seq #:name [name #f])
-  (let ([k (or name (gensym "col"))])
-    (if (table-empty? df)
-        (let ([data (for/vector ([x seq]) x)])
-          (table (build-index-column (vector-length data)) (list (cons k data))))
-        
-        ; match the pk size, insert values into new column
-        (let* ([pk (table-pk df)]
-               [ix (column-index pk)]
-               [n (vector-length (column-data pk))]
-               [data (make-vector n #f)]
-               [col (list (cons k data))])
-          (index-for-each (λ (i x) (vector-set! data i x)) ix seq)
-          (struct-copy table
-                       df
-                       [column-data (append (table-column-data df) col)])))))
-#|
-;; ----------------------------------------------------
-
-(define (table-with-columns-renamed df rename-assocs)
-  (let ([columns (for/list ([col (table-columns df)])
-                   (match col
-                     [(list name v)
-                      (let ([mapping (assq name rename-map)])
-                        (list (or (and mapping (second mapping)) name) v))]))])
-    (struct-copy table df [columns columns])))
-|#

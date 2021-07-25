@@ -14,6 +14,7 @@ All rights reserved.
 (require "group.rkt")
 (require "table.rkt")
 (require "read.rkt")
+(require "join.rkt")
 (require "print.rkt")
 (require "write.rkt")
 
@@ -58,6 +59,7 @@ All rights reserved.
  secondary-index->index
  secondary-index-length
  secondary-index-empty?
+ secondary-index-sorted?
  secondary-index-count
  secondary-index-find
  secondary-index-member
@@ -71,7 +73,6 @@ All rights reserved.
  ; table
  (struct-out table)
  empty-table
- table-with-column
  table->row-stream
  table->record-stream
  table-shape
@@ -96,6 +97,7 @@ All rights reserved.
  table-with-index
  table-distinct
  table-reverse
+ table-join
 
  ; read
  table-builder%

@@ -21,19 +21,28 @@
   (class object%
     (super-new)
 
-    ; column-major data
-    (define column-data (make-hash))
-    (define column-order '())
+    ; initialization
+    (init-field [initial-size 5000]
+                [columns '()])
+
+    ; initial columns from header
+    (define column-data (make-hasheq))
+    (define column-order (for/list ([k columns])
+                           (string->symbol (format "~a" k))))
 
     ; table size and next row index
-    (define n 5000)
+    (define n initial-size)
     (define i 0)
 
     ; create a new column
-    (define/private (add-column name)
+    (define/public (add-column name)
       (let ([column-name (string->symbol (~a name))])
         (set! column-order (append column-order (list column-name))))
       (make-vector n #f))
+
+    ; build the column-major data vectors
+    (for ([k column-order])
+      (hash-set! column-data k (make-vector n #f)))
 
     ; advance the row index, increase table size if needed
     (define/private (grow-table)
@@ -67,7 +76,8 @@
       (let ([pk (build-index-column i)])
         (table pk
                (for/list ([k column-order])
-                 (cons k (vector-take (hash-ref column-data k) i))))))))
+                 (cons k (vector-take (hash-ref column-data k) i)))
+               (make-hash))))))
 
 ;; ----------------------------------------------------
 
@@ -114,10 +124,7 @@
                        [first-row (next-row)]
 
                        ; create a list of column names/indices
-                       [column-names (if header
-                                         (map string->symbol first-row)
-                                         (for/list ([i (range (length first-row))])
-                                           (string->symbol (format "_~a" i))))]
+                       [column-names (if header first-row (range (length first-row)))]
 
                        ; parse cells, look for n/a as well
                        [parse-row (λ (r)
@@ -129,12 +136,10 @@
                                           [else x]))))]
 
                        ; initialize a new table builder
-                       [builder (new table-builder%)])
+                       [builder (new table-builder% [columns column-names])])
 
                   ; add all the rows to the table
-                  (csv-for-each (λ (r)
-                                  (send builder add-row (parse-row r) column-names))
-                                next-row)
+                  (csv-for-each (λ (r) (send builder add-row (parse-row r))) next-row)
 
                   ; return the table
                   (send builder build)))))

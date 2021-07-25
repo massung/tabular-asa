@@ -113,6 +113,11 @@
 
 ;; ----------------------------------------------------
 
+(define (secondary-index-sorted? ix)
+  (not (not (secondary-index-less-than? ix))))
+
+;; ----------------------------------------------------
+
 (define (secondary-index-count ix)
   (for/sum ([key (secondary-index-keys ix)])
     (length (cdr key))))
