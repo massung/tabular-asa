@@ -2,7 +2,7 @@
 
 #|
 
-Racket Tables - a fast, efficient, dataframes implementation
+Tabular Asa - a fast, efficient, dataframes implementation
 
 Copyright (c) 2021 by Jeffrey Massung
 All rights reserved.

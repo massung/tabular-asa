@@ -1,5 +1,14 @@
 #lang racket
 
+#|
+
+Tabular Asa - a fast, efficient, dataframes implementation
+
+Copyright (c) 2021 by Jeffrey Massung
+All rights reserved.
+
+|#
+
 (provide (all-defined-out)
          (except-out (struct-out index-stream)))
 
