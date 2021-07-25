@@ -97,7 +97,8 @@ All rights reserved.
            (for/list ([col (table-column-data df)])
              (match col
                [(cons name data)
-                (cons name (index-compact ix data))])))))
+                (cons name (index-compact ix data))]))
+           (make-hash))))
 
 ;; ----------------------------------------------------
 
