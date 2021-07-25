@@ -89,7 +89,9 @@ All rights reserved.
 ;; ----------------------------------------------------
 
 (define (column-map proc col)
-  (index-map proc (column-index col) (column-data col)))
+  (struct-copy column
+               col
+               [data (index-map proc (column-index col) (column-data col))]))
 
 ;; ----------------------------------------------------
 
@@ -125,3 +127,41 @@ All rights reserved.
   (struct-copy column
                col
                [index (index-sort (column-index col) (column-data col) less-than?)]))
+
+;; ----------------------------------------------------
+
+(module+ test
+  (require rackunit)
+
+  ; create a simple column
+  (define c (build-column (range 5) #:name 'foo))
+
+  ; verify the column
+  (check-equal? (column-name c) 'foo)
+  (check-equal? (column-index c) #(0 1 2 3 4))
+  (check-equal? (column-data c) #(0 1 2 3 4))
+  (check-equal? (column-length c) 5)
+  (check-equal? (column-empty? c) #f)
+
+  ; renaming
+  (check-equal? (column-name (column-rename c 'bar)) 'bar)
+
+  ; ensure length and data are identical
+  (define (check-data c seq)
+    (check-true (and (= (column-length c)
+                        (sequence-length seq))
+                     (for/and ([x seq] [y c])
+                       (equal? x y)))))
+
+  ; head, tail, etc.
+  (check-data (column-head c 2) #(0 1))
+  (check-data (column-tail c 2) #(3 4))
+
+  ; iteration and indexing
+  (column-for-each (λ (i x) (check-equal? i x)) c)
+
+  ; map, filter, reverse, sort, etc.
+  (check-data (column-map (λ (i x) (* 10 x)) c) #(0 10 20 30 40))
+  (check-data (column-filter (λ (i x) (even? x)) c) #(0 2 4))
+  (check-data (column-reverse c) #(4 3 2 1 0))
+  (check-data (column-sort c >) #(4 3 2 1 0)))

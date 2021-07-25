@@ -97,3 +97,33 @@ All rights reserved.
 
 (define (index-sort ix v less-than?)
   (vector-sort ix less-than? #:key (λ (n) (vector-ref v n))))
+
+;; ----------------------------------------------------
+
+(module+ test
+  (require rackunit)
+
+  ; build a simple indexes
+  (define ix (build-index 5))
+  (define ix-head (index-head ix 2))
+  (define ix-tail (index-tail ix 2))
+  (define ix-reverse (index-reverse ix))
+
+  ; simple index tests
+  (check-equal? ix #(0 1 2 3 4))
+  (check-equal? ix-head #(0 1))
+  (check-equal? ix-tail #(3 4))
+  (check-equal? ix-reverse #(4 3 2 1 0))
+
+  ; create some simple data to work with
+  (define data #(a b c d e))
+
+  ; test streams
+  (check-equal? (stream->list (index->stream ix data)) '(a b c d e))
+  (check-equal? (stream->list (index->stream ix-head data)) '(a b))
+  (check-equal? (stream->list (index->stream ix-tail data)) '(d e))
+  (check-equal? (stream->list (index->stream ix-reverse data)) '(e d c b a))
+
+  ; test map + filter
+  (check-equal? (index-map (λ (i x) (~a x)) ix data) #("a" "b" "c" "d" "e"))
+  (check-equal? (index-filter (λ (i x) (even? i)) ix data) #(0 2 4)))

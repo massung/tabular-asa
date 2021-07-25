@@ -78,13 +78,13 @@ All rights reserved.
 
 ;; ----------------------------------------------------
 
-(define (table-index df [k #f] [less-than? #f])
+(define (table-index df [k #f] [less-than? #f] [keep 'all])
   (if k
       (hash-ref! (table-indexes df)
-                 (list k less-than?)
+                 (list k less-than? keep)
                  (λ ()
                    (let ([col (table-column df k)])
-                     (build-secondary-index col less-than?))))
+                     (build-secondary-index col less-than? keep))))
       (column-index (table-pk df))))
 
 ;; ----------------------------------------------------

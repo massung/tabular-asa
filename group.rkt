@@ -213,3 +213,10 @@ All rights reserved.
       (if (<= count n)
           (values k n)
           (values key count)))))
+
+;; ----------------------------------------------------
+
+(module+ test
+  (require rackunit)
+
+  )
