@@ -252,3 +252,19 @@ All rights reserved.
   (struct-copy table
                df
                [pk (column-reverse (table-pk df))]))
+
+;; ----------------------------------------------------
+
+(module+ test
+  (require rackunit)
+
+  ; create a simple table by hand
+  (define df (table (build-index-column 5)
+                    (list (cons 'name #("Jeff" "Jennie" "Isabel" "Dave" "Bob"))
+                          (cons 'age #(44 39 12 24 38))
+                          (cons 'gender #(m f f m m)))
+                    (make-hasheq)))
+
+  ; test row/record conversion
+  (check-equal? (table-row df 0) '(0 "Jeff" 44 m))
+  (check-equal? (table-record df 0) #hash((|| . 0) (name . "Jeff") (age . 44) (gender . m))))

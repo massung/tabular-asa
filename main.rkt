@@ -159,6 +159,8 @@ All rights reserved.
                  (send b add-row '("Random House" 12000))
                  (send b build)))
 
+  ; test distinct
+  
   ; test joins
   (let ([join (λ (how)
                 (table-join pubs df '(Publisher) string<? how))])
