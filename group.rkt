@@ -61,14 +61,19 @@ All rights reserved.
 
 (define (secondary-index->stream ix #:from [from #f] #:to [to #f])
   (let* ([n (secondary-index-length ix)]
+         [keys (secondary-index-keys ix)]
          [start (if from (secondary-index-find ix from #f) 0)]
          [end (if to (secondary-index-find ix to #f) n)])
-    (if (<= (- end start) 0)
+    (if (zero? n)
         (secondary-index-stream 0 0 #() #f)
-        (secondary-index-stream start
-                                end
-                                (secondary-index-keys ix)
-                                (cdr (secondary-index-ref ix start))))))
+        (let ([xs (secondary-index-ref ix start)])
+          (cond
+            [(> end start)
+             (secondary-index-stream start end keys (cdr xs))]
+            [(or (not from) (equal? from (car xs)))
+             (secondary-index-stream start (add1 end) keys (cdr xs))]
+            [else
+             (secondary-index-stream 0 0 #() #f)])))))
   
 ;; ----------------------------------------------------
 
@@ -167,7 +172,9 @@ All rights reserved.
                                       (search ni start i))
                                     (let ([ni (arithmetic-shift (+ i end) -1)])
                                       (search ni i end)))])))])
-          (search (arithmetic-shift n -1) 0 n)))))
+          (if (secondary-index-empty? ix)
+              #f
+              (search (arithmetic-shift n -1) 0 n))))))
 
 ;; ----------------------------------------------------
 
@@ -263,6 +270,15 @@ All rights reserved.
   (check-equal? (secondary-index-find ix "Jeff") 4)
   (check-equal? (secondary-index-find ix "Norah") 7)
 
+  ; test index streams
+  (let ([ix-stream (λ (from to)
+                     (stream->list (secondary-index->stream ix #:from from #:to to)))])
+    (check-equal? (ix-stream #f "Jeff") '(4 3 8 9 2 12))
+    (check-equal? (ix-stream "Norah" #f) '(6 13 5 15 14))
+    (check-equal? (ix-stream "Chuck" "Jeff") '(3 8 9 2 12))
+    (check-equal? (ix-stream "Chuck" "Chuck") '())
+    (check-equal? (ix-stream "Patrick" "Patrick") '(5 15)))
+
   ; refernces
   (check-equal? (secondary-index-ref ix 4) '("Jeff" 0 7 11))
   (check-equal? (secondary-index-ref ix 5) '("Jennie" 1))
@@ -331,4 +347,7 @@ All rights reserved.
   (check-equal? (car (secondary-index-min xix)) (apply min xs))
   (check-equal? (car (secondary-index-max xix)) (apply max xs))
   (check-equal? (secondary-index-mean xix)
-                (/ (apply + xs) (length xs))))
+                (/ (apply + xs) (length xs)))
+
+  ; fail empty index find
+  (check-false (secondary-index-find (secondary-index empty-column #() <) 10)))

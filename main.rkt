@@ -83,6 +83,7 @@ All rights reserved.
  table-compact
  table-for-each
  table-map
+ table-fold
  table-columns
  table-column-names
  table-row

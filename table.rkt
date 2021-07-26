@@ -34,18 +34,15 @@ All rights reserved.
 
 ;; ----------------------------------------------------
 
-(define (table->row-stream df [index #f] #:keep-index? [keep-index #t])
+(define (table->row-stream df [indices #f] #:keep-index? [keep-index #t])
   (let ([key-stream (column->stream (table-pk df))])
     (stream-map (λ (i)
                   (table-row df i #:keep-index? keep-index))
-                (range (table-length df)))))
-;                (sequence->stream (if index
-;                                      index
-;                                      (table-index df))))))
+                (or indices (range (table-length df))))))
 
 ;; ----------------------------------------------------
 
-(define (table->record-stream df [index #f] #:keep-index? [keep-index #t])
+(define (table->record-stream df [indices #f] #:keep-index? [keep-index #t])
   (let* ([columns (table-column-names df)]
 
          ; optionally prepend the index column name
@@ -55,7 +52,7 @@ All rights reserved.
          [row->record (λ (row)
                         (for/hash ([k ks] [v row])
                           (values k v)))])
-    (stream-map row->record (table->row-stream df index #:keep-index? keep-index))))
+    (stream-map row->record (table->row-stream df indices #:keep-index? keep-index))))
 
 ;; ----------------------------------------------------
 
@@ -114,6 +111,15 @@ All rights reserved.
   (let* ([df-cut (if cut (table-cut df cut) df)]
          [rows (table->row-stream df-cut #:keep-index? keep-index)])
     (stream-map (λ (row) (apply proc row)) rows)))
+
+;; ----------------------------------------------------
+
+(define (table-fold proc initial-value df [cut #f] #:keep-index? [keep-index #t])
+  (let* ([df-cut (if cut (table-cut df cut) df)]
+         [rows (table->row-stream df-cut #:keep-index? keep-index)])
+    (for/fold ([acc initial-value])
+              ([row rows])
+      (apply proc acc row))))
 
 ;; ----------------------------------------------------
 
