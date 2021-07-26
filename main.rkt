@@ -159,13 +159,7 @@ All rights reserved.
                  (send b add-row '("Random House" 12000))
                  (send b build)))
 
-  ; test distinct
-  
-  ; test joins
-  (let ([join (λ (how)
-                (table-join pubs df '(Publisher) string<? how))])
-    (check-equal? (table-length (join 'inner)) 53)
-    (check-equal? (table-length (join 'left)) 54)
-    (check-equal? (table-length (join 'right)) 115)
-    (check-equal? (table-length (join 'outer)) 116))
-  )
+  ; join to get the best book sales per publisher
+  (let* ([top (table-distinct df 'Publisher)]
+         [w/sales (table-join top pubs '(Publisher) string<? 'right)])
+    (check-true (column-equal? (table-column w/sales 'Sales) '(0 20000 12000 10000)))))

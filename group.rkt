@@ -127,9 +127,14 @@ All rights reserved.
 
 ;; ----------------------------------------------------
 
-(define (secondary-index-count ix)
-  (for/sum ([key (secondary-index-keys ix)])
-    (length (cdr key))))
+(define (secondary-index-count ix [key #f])
+  (if key
+      (let ([ks (secondary-index-member ix key)])
+        (if (not ks)
+            0
+            (length (cdr ks))))
+      (for/sum ([key (secondary-index-keys ix)])
+        (length (cdr key)))))
 
 ;; ----------------------------------------------------
 
@@ -149,15 +154,19 @@ All rights reserved.
                                [(equal? key (car group)) i]
 
                                ; nothing more to search?
-                               [(>= (add1 i) end)
-                                (if exact #f end)]
+                               [(= i start)
+                                (and (not exact)
+                                     (if (less-than? key (car group))
+                                         i
+                                         end))]
 
-                               ; search the left or right half?
-                               [else (if (less-than? key (car group))
-                                         (let ([ni (arithmetic-shift (+ start i) -1)])
-                                           (search ni start i))
-                                         (let ([ni (arithmetic-shift (+ i end) -1)])
-                                           (search ni i end)))])))])
+                               ; search left or right?
+                               [else
+                                (if (less-than? key (car group))
+                                    (let ([ni (arithmetic-shift (+ start i) -1)])
+                                      (search ni start i))
+                                    (let ([ni (arithmetic-shift (+ i end) -1)])
+                                      (search ni i end)))])))])
           (search (arithmetic-shift n -1) 0 n)))))
 
 ;; ----------------------------------------------------
@@ -191,9 +200,12 @@ All rights reserved.
 ;; ----------------------------------------------------
 
 (define (secondary-index-mean ix)
-  (/ (for/sum ([key (secondary-index-keys ix)])
-       (car key))
-     (secondary-index-length ix)))
+  (for/fold ([n 0] [m 0] #:result (/ n m))
+            ([key (secondary-index-keys ix)])
+    (match key
+      [(list x xs ...)
+       (let ([count (length xs)])
+         (values (+ n (* x count)) (+ m count)))])))
 
 ;; ----------------------------------------------------
 
@@ -219,4 +231,104 @@ All rights reserved.
 (module+ test
   (require rackunit)
 
-  )
+  ; build a simple column in memory of names
+  (define col (build-column '("Jeff"
+                              "Jennie"
+                              "Isabel"
+                              "Dave"
+                              "Bob"
+                              "Patrick"
+                              "Norah"
+                              "Jeff"
+                              "Dave"
+                              "Faye"
+                              "Marnie"
+                              "Jeff"
+                              "Isabel"
+                              "Norah"
+                              "Webber"
+                              "Patrick")))
+
+  ; build the index for the name and sort it
+  (define ix (build-secondary-index col string<?))
+
+  ; initial validations
+  (check-equal? (secondary-index-length ix) 10)
+  (check-equal? (secondary-index-count ix) 16)
+  (check-equal? (secondary-index-count ix "Jeff") 3)
+  (check-true (secondary-index-sorted? ix))
+
+  ; lookup some keys
+  (check-equal? (secondary-index-find ix "Bob") 0)
+  (check-equal? (secondary-index-find ix "Jeff") 4)
+  (check-equal? (secondary-index-find ix "Norah") 7)
+
+  ; refernces
+  (check-equal? (secondary-index-ref ix 4) '("Jeff" 0 7 11))
+  (check-equal? (secondary-index-ref ix 5) '("Jennie" 1))
+
+  ; check failures
+  (check-false (secondary-index-find ix "David"))
+  (check-false (secondary-index-find ix "Andy"))
+  (check-false (secondary-index-find ix "Xavier"))
+
+  ; check non-exact failures
+  (check-equal? (secondary-index-find ix "David" #f)
+                (secondary-index-find ix "Faye"))
+  (check-equal? (secondary-index-find ix "Andy" #f)
+                (secondary-index-find ix "Bob"))
+  (check-equal? (secondary-index-find ix "Xavier" #f)
+                (secondary-index-length ix))
+
+  ; member indices lookup
+  (check-equal? (secondary-index-member ix "Jeff") '("Jeff" 0 7 11))
+  (check-equal? (secondary-index-member ix "Jennie") '("Jennie" 1))
+  (check-false (secondary-index-member ix "Xavier"))
+
+  ; check median and mode
+  (check-equal? (secondary-index-median ix) '("Jennie" 1))
+  (check-equal? (secondary-index-mode ix) '("Jeff" 0 7 11))
+
+  ; build distinct - take first
+  (check-equal? (secondary-index-keys (build-secondary-index col string<? 'first))
+                #(("Bob" 4)
+                  ("Dave" 3)
+                  ("Faye" 9)
+                  ("Isabel" 2)
+                  ("Jeff" 0)
+                  ("Jennie" 1)
+                  ("Marnie" 10)
+                  ("Norah" 6)
+                  ("Patrick" 5)
+                  ("Webber" 14)))
+
+  ; build distinct - take last
+  (check-equal? (secondary-index-keys (build-secondary-index col string<? 'last))
+                #(("Bob" 4)
+                  ("Dave" 8)
+                  ("Faye" 9)
+                  ("Isabel" 12)
+                  ("Jeff" 11)
+                  ("Jennie" 1)
+                  ("Marnie" 10)
+                  ("Norah" 13)
+                  ("Patrick" 15)
+                  ("Webber" 14)))
+
+  ; build distinct - drop all duplicates
+  (check-equal? (secondary-index-keys (build-secondary-index col string<? 'none))
+                #(("Bob" 4)
+                  ("Faye" 9)
+                  ("Jennie" 1)
+                  ("Marnie" 10)
+                  ("Webber" 14)))
+
+  ; create a list of random numbers and index them
+  (define xs (for/list ([_ (range 20)]) (random 10)))
+  (define xix (build-secondary-index (build-column xs) <))
+  
+  ; ensure min, max, and mean
+  (check-equal? (car (secondary-index-min xix)) (apply min xs))
+  (check-equal? (car (secondary-index-max xix)) (apply max xs))
+  (check-equal? (secondary-index-mean xix)
+                (/ (apply + xs) (length xs))))
