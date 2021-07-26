@@ -33,49 +33,54 @@ All rights reserved.
 
 ;; ----------------------------------------------------
 
+(define (join-indexes left right less-than? on [with on])
+  (values (table-index left on less-than?)
+          (table-index right with less-than?)))
+
+;; ----------------------------------------------------
+
 (define (table-join df
                     other
-                    k
-                    with
+                    on
                     less-than?
                     [how 'inner]
                     #:left-columns [left-columns (table-column-names df)]
                     #:right-columns [right-columns (table-column-names other)]
                     #:left-suffix [l-suffix "-x"]
                     #:right-suffix [r-suffix "-y"])
-  (let ([left-index (table-index df k less-than?)]
-        [right-index (table-index other with less-than?)]
+  (let-values ([(left-index right-index)
+                (apply join-indexes df other less-than? on)])
 
-        ; execute the correct join function
-        [join (case how
-                ((inner) inner-join)
-                ((left) left-join)
-                ((right) right-join)
-                ((outer) outer-join)
-                (else (error "Unknown join type:" how)))])
+    ; determine the join function to call
+    (let ([join (case how
+                  ((inner) inner-join)
+                  ((left) left-join)
+                  ((right) right-join)
+                  ((outer) outer-join)
+                  (else (error "Unknown join type:" how)))])
 
-    ; get the columns of the left and right, renamed + dropped
-    (let-values ([(l r) (join-columns left-columns
-                                      right-columns
-                                      l-suffix
-                                      r-suffix
-                                      (if (memq how '(inner left))
-                                          (list k with)
-                                          '()))])
+      ; get the columns of the left and right, renamed + dropped
+      (let-values ([(l r) (join-columns left-columns
+                                        right-columns
+                                        l-suffix
+                                        r-suffix
+                                        (case how
+                                          ((inner left) on)
+                                          ((right outer) null)))])
 
-      ; build the new left/right tables to join (with proper columns)
-      (let* ([left (table-cut df l)]
-             [right (table-cut other r)]
+        ; build the new left/right tables to join (with proper columns)
+        (let* ([left (table-cut df l)]
+               [right (table-cut other r)]
 
-             ; create a new table-builder% for the join function
-             [builder (new table-builder%
-                           [initial-size (table-length df)]
-                           [columns (append (table-column-names left)
-                                            (table-column-names right))])])
-        (join builder left right left-index right-index)
+               ; create a new table-builder% for the join function
+               [builder (new table-builder%
+                             [initial-size (table-length df)]
+                             [columns (append (table-column-names left)
+                                              (table-column-names right))])])
+          (join builder left right left-index right-index)
 
-        ; build the table and return it
-        (send builder build)))))
+          ; build the table and return it
+          (send builder build))))))
 
 ;; ----------------------------------------------------
 
@@ -86,24 +91,23 @@ All rights reserved.
                                    (vector-ref (secondary-index-keys l-ix) li))]
                            [y (and (< ri (secondary-index-length r-ix))
                                    (vector-ref (secondary-index-keys r-ix) ri))])
-                       (when (or x y)
-                         (cond
-                           [(and x y (equal? (car x) (car y)))
-                            (when on-equal
-                              (on-equal (cdr x) (cdr y)))
-                            (join (add1 li) (add1 ri))]
+                       (cond
+                         [(and x y (equal? (car x) (car y)))
+                          (when on-equal
+                            (on-equal (cdr x) (cdr y)))
+                          (join (add1 li) (add1 ri))]
 
-                           ; left < right?
-                           [(or (not y) (less-than? (car x) (car y)))
-                            (when on-less
-                              (on-less (cdr x)))
-                            (join (add1 li) ri)]
+                         ; left < right?
+                         [(and x (or (not y) (less-than? (car x) (car y))))
+                          (when on-less
+                            (on-less (cdr x)))
+                          (join (add1 li) ri)]
 
-                           ; right < left?
-                           [else
-                            (when on-else
-                              (on-else (cdr y)))
-                            (join li (add1 ri))]))))])
+                         ; right < left?
+                         [(and y (or (not x) (less-than? (car y) (car x))))
+                          (when on-else
+                            (on-else (cdr y)))
+                          (join li (add1 ri))])))])
       (join 0 0))))
 
 ;; ----------------------------------------------------

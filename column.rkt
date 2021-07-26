@@ -62,6 +62,18 @@ All rights reserved.
 
 ;; ----------------------------------------------------
 
+(define (column-equal? col seq)
+  (call/ec (λ (return)
+             (do ([s1 (column->stream col) (stream-rest s1)]
+                  [s2 (sequence->stream seq) (stream-rest s2)])
+               [(or (stream-empty? s1) (stream-empty? s2))
+                (and (stream-empty? s1) (stream-empty? s2))]
+               (unless (equal? (stream-first s1)
+                               (stream-first s2))
+                 (return #f))))))
+
+;; ----------------------------------------------------
+
 (define (column-compact col)
   (let ([ix (column-index col)])
     (struct-copy column
@@ -143,15 +155,18 @@ All rights reserved.
   (check-equal? (column-length c) 5)
   (check-equal? (column-empty? c) #f)
 
+  ; check column-equal?
+  (check-true (column-equal? c '(0 1 2 3 4)))
+  (check-false (column-equal? c '(0 1 2 3)))
+  (check-false (column-equal? c '(0 1 2 3 4 5)))
+  (check-false (column-equal? c '(0 1 a 2 3)))
+
   ; renaming
   (check-equal? (column-name (column-rename c 'bar)) 'bar)
 
   ; ensure length and data are identical
   (define (check-data c seq)
-    (check-true (and (= (column-length c)
-                        (sequence-length seq))
-                     (for/and ([x seq] [y c])
-                       (equal? x y)))))
+    (check-true (column-equal? c seq)))
 
   ; head, tail, etc.
   (check-data (column-head c 2) #(0 1))

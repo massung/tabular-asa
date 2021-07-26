@@ -41,6 +41,7 @@ All rights reserved.
  column->stream
  column-length
  column-empty?
+ column-equal?
  column-compact
  column-rename
  column-ref
@@ -113,3 +114,56 @@ All rights reserved.
  table-write/csv
  table-write/json
  table-write/string)
+
+(module+ test
+  (require rackunit)
+
+  ; load a simple table of books
+  (define df (table-read/csv "test/books.csv"))
+
+  ; ensure that the table loaded the correct size of data
+  (check-equal? (call-with-values (λ () (table-shape df)) list) '(211 5))
+  (check-equal? (table-column-names df) '(Title Author Genre Height Publisher))
+
+  ; record streaming
+  (let* ([record (stream-first (table->record-stream df #:keep-index? #f))]
+
+         ; create a list of the record keys
+         [header (hash-keys record)])
+    (check-not-false (for/and ([h header])
+                       (memq h (table-column-names df)))))
+  
+  ; remove all missing 
+  (define df-na (table-drop-na df))
+
+  ; ensure resulting size
+  (check-equal? (table-length df-na) 112)
+
+  ; head and tail
+  (check-true (column-equal? (table-column (table-head df-na 5) 'Height) '(228 235 197 179 197)))
+  (check-true (column-equal? (table-column (table-tail df-na 5) 'Height) '(213 228 197 172 197)))
+
+  ; test filtering and mapping
+  (let ([pubs (table-filter (λ (i p) (string=? p "Wiley")) df-na '(Publisher))])
+    (check-equal? (table-length pubs) 2)
+    (check-equal? (let ([authors (table-map (λ (i a) a) pubs '(Author))])
+                    (stream->list authors))
+                  '("Goswami, Jaideva" "Foreman, John")))
+
+  ; define a table for joins
+  (define pubs (let ([b (new table-builder%
+                             [columns '(Publisher Sales)])])
+                 (send b add-row '("Wiley" 10000))
+                 (send b add-row '("Penguin" 20000))
+                 (send b add-row '("FUBAR" 0))
+                 (send b add-row '("Random House" 12000))
+                 (send b build)))
+
+  ; test joins
+  (let ([join (λ (how)
+                (table-join pubs df '(Publisher) string<? how))])
+    (check-equal? (table-length (join 'inner)) 53)
+    (check-equal? (table-length (join 'left)) 54)
+    (check-equal? (table-length (join 'right)) 115)
+    (check-equal? (table-length (join 'outer)) 116))
+  )

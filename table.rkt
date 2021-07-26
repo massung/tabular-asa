@@ -38,9 +38,10 @@ All rights reserved.
   (let ([key-stream (column->stream (table-pk df))])
     (stream-map (λ (i)
                   (table-row df i #:keep-index? keep-index))
-                (sequence->stream (if index
-                                      index
-                                      (table-index df))))))
+                (range (table-length df)))))
+;                (sequence->stream (if index
+;                                      index
+;                                      (table-index df))))))
 
 ;; ----------------------------------------------------
 
@@ -116,19 +117,18 @@ All rights reserved.
 
 ;; ----------------------------------------------------
 
-(define (table-filter proc df [cut #f] #:keep-index? [keep-index #t])
-  (let ([pk (table-pk df)])
+(define (table-filter pred df [cut #f] #:keep-index? [keep-index #t])
+  (let* ([df-cut (if cut (table-cut df cut) df)]
+
+         ; stream the rows for the current index
+         [s (table->row-stream df-cut #:keep-index? keep-index)]
+
+         ; filter index by result of row predicate
+         [ix (for/vector ([i (table-index df)] [r s] #:when (apply pred r))
+               i)])
     (struct-copy table
                  df
-                 [pk (struct-copy column
-                                  pk
-                                  [index (for/vector ([i (column-index pk)]
-                                                      [f (table-map proc
-                                                                    df
-                                                                    cut
-                                                                    #:keep-index? keep-index)]
-                                                      #:when f)
-                                           i)])])))
+                 [pk (struct-copy column (table-pk df) [index ix])])))
 
 ;; ----------------------------------------------------
 
@@ -183,7 +183,7 @@ All rights reserved.
 ;; ----------------------------------------------------
 
 (define (table-drop-na df [ks (table-column-names df)])
-  (table-filter df (table-map all? (table-cut df ks))))
+  (table-filter all? df ks #:keep-index? #f))
 
 ;; ----------------------------------------------------
 
