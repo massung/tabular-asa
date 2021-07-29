@@ -13,11 +13,6 @@ All rights reserved.
 
 ;; ----------------------------------------------------
 
-(require "column.rkt")
-(require "table.rkt")
-
-;; ----------------------------------------------------
-
 (provide (all-defined-out)
          (except-out (struct-out index-stream)))
 
@@ -83,30 +78,17 @@ All rights reserved.
 
 ;; ----------------------------------------------------
 
-(define (build-index seq less-than? [keep 'all])
-  (let* ([h (make-hash)]
-         [insert (λ (x i)
-                   (when x
-                     (hash-update! h
-                                   x
-                                   (λ (ix)
-                                     (case keep
-                                       [(first) (if (null? ix) (list i) ix)]
-                                       [(last)  (list i)]
-                                       [(none)  (and (null? ix) (list i))]
-                                       [else    (cons i ix)]))
-                                   '())))])
-
-    ; build the secondary index hash
-    (for ([(x i) (in-indexed seq)])
-      (insert x i))
+(define (build-index seq less-than?)
+  (let ([h (make-hash)])
+    (for ([(x i) (in-indexed seq)] #:when x)
+      (hash-update! h x (λ (ix) (cons i ix)) '()))
 
     ; build the key-space vector, then sort the keys
-    (let ([keys (for/vector ([(k indices) h] #:when indices)
+    (let ([keys (for/vector ([(k indices) h])
                   (cons k (reverse indices)))])
       (vector-sort! keys less-than? #:key car)
 
-      ; build the final, secondary index
+      ; build the final index
       (index keys less-than?))))
 
 ;; ----------------------------------------------------
@@ -151,12 +133,6 @@ All rights reserved.
       (if (index-empty? ix)
           #f
           (search (arithmetic-shift n -1) 0 n)))))
-
-;; ----------------------------------------------------
-
-(define (index-member ix key)
-  (let ([i (index-find ix key)])
-    (and i (index-ref ix i))))
 
 ;; ----------------------------------------------------
 
@@ -219,14 +195,6 @@ All rights reserved.
   ; ensure the order and integrity of the index
   (check-equal? (sequence->list (sequence-map (λ (i) (vector-ref xs i)) ix))
                 (vector->list sorted))
-
-  ; check distinct indexes
-  (check-equal? (index-keys (build-index xs < 'first))
-                #((0 3) (1 5) (3 1) (4 4) (5 16) (6 0) (7 12) (8 19) (9 7)))
-  (check-equal? (index-keys (build-index xs < 'last))
-                #((0 28) (1 23) (3 22) (4 24) (5 25) (6 29) (7 12) (8 27) (9 14)))
-  (check-equal? (index-keys (build-index xs < 'none))
-                #((7 12)))
 
   ; check min, max, median, and mode
   (check-equal? (car (index-min ix)) (vector-argmin identity xs))

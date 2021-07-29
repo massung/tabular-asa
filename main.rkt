@@ -9,9 +9,8 @@ All rights reserved.
 
 |#
 
-(require "index.rkt")
 (require "column.rkt")
-(require "group.rkt")
+(require "index.rkt")
 (require "table.rkt")
 (require "read.rkt")
 (require "join.rkt")
@@ -23,80 +22,56 @@ All rights reserved.
 (provide
 
  ; index
- index->stream
+ (struct-out index)
+ build-index
+ empty-index
+ index-scan
  index-length
  index-empty?
- index-compact
+ index-find
  index-ref
- index-for-each
  index-map
- index-filter
- index-head
- index-tail
- index-reverse
- index-sort
+ index-min
+ index-max
+ index-median
+ index-mode
 
  ; column
  (struct-out column)
- column->stream
  column-length
  column-empty?
  column-equal?
  column-compact
  column-rename
  column-ref
- column-for-each
- column-map
- column-filter
  column-head
  column-tail
  column-reverse
  column-sort
- 
- ; group
- (struct-out secondary-index)
- build-secondary-index
- secondary-index->stream
- secondary-index->index
- secondary-index-length
- secondary-index-empty?
- secondary-index-sorted?
- secondary-index-count
- secondary-index-find
- secondary-index-member
- secondary-index-ref
- secondary-index-min
- secondary-index-max
- secondary-index-mean
- secondary-index-median
- secondary-index-mode
 
  ; table
  (struct-out table)
  empty-table
- table->row-stream
- table->record-stream
- table-shape
  table-length
+ table-shape
  table-empty?
- table-index
- table-compact
- table-for-each
- table-map
- table-fold
+ table-reindex
  table-columns
  table-column-names
+ table-column
+ table-with-column
+ table-cut
+ table-drop
  table-row
  table-record
+ table-records
  table-head
  table-tail
+ table-select
+ table-map
  table-filter
  table-drop-na
- table-drop
- table-cut
- table-sort-by
- table-index-by
- table-with-index
+ table-sort
  table-distinct
  table-reverse
  table-join

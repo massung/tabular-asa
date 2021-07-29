@@ -21,24 +21,7 @@ All rights reserved.
 
 ;; ----------------------------------------------------
 
-(provide (all-defined-out)
-         (except-out table-write))
-
-;; ----------------------------------------------------
-
-(define (table-write port-or-filename write-proc)
-  (cond
-    [(output-port? port-or-filename)
-     (write-proc port-or-filename)]
-
-    ; TODO: (eq? port-or-filename 'stdout)
-
-    ; local file, open for reading and parse
-    [(string? port-or-filename)
-     (call-with-output-file port-or-filename write-proc)]
-
-    ; unknown destination type
-    [#t (error "Invalid output-port or filename:" port-or-filename)]))
+(provide (all-defined-out))
 
 ;; ----------------------------------------------------
 

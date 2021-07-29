@@ -21,8 +21,7 @@ All rights reserved.
 
 ;; ----------------------------------------------------
 
-(provide (all-defined-out)
-         (except-out table-read))
+(provide (all-defined-out))
 
 ;; ----------------------------------------------------
 
@@ -88,23 +87,7 @@ All rights reserved.
 
 ;; ----------------------------------------------------
 
-(define (table-read port-or-filename read-proc)
-  (cond
-    [(input-port? port-or-filename)
-     (read-proc port-or-filename)]
-
-    ; TODO: (eq? port-or-filename 'stdin)
-
-    ; local file, open for reading and parse
-    [(string? port-or-filename)
-     (call-with-input-file port-or-filename read-proc)]
-
-    ; unknown import source
-    [#t (error "Invalid input-port or filename:" port-or-filename)]))
-
-;; ----------------------------------------------------
-
-(define (table-read/csv port-or-filename
+(define (table-read/csv port
                         #:header? [header #t]
                         #:separator-char [sep #\,]
                         #:newline [newline 'lax]
@@ -114,79 +97,87 @@ All rights reserved.
                         #:strip? [strip #f]
                         #:na [na #f]
                         #:na-values [na-values (list "" "." "na" "n/a" "nan" "null")])
-  (table-read port-or-filename
-              (λ (port)
-                (let* ([spec `((separator-chars ,sep)
-                               (newline-type . ,newline)
-                               (quote-char . ,quote)
-                               (quote-doubling-escapes? . ,double-quote)
-                               (comment-chars ,comment)
-                               (strip-leading-whitespace? . ,strip)
-                               (strip-trailing-whitespace? . ,strip))]
+  (let* ([spec `((separator-chars ,sep)
+                 (newline-type . ,newline)
+                 (quote-char . ,quote)
+                 (quote-doubling-escapes? . ,double-quote)
+                 (comment-chars ,comment)
+                 (strip-leading-whitespace? . ,strip)
+                 (strip-trailing-whitespace? . ,strip))]
              
-                       ; create parser
-                       [next-row (make-csv-reader port spec)]
+         ; create parser
+         [next-row (make-csv-reader port spec)]
 
-                       ; get the first row (optionally the header)
-                       [first-row (next-row)]
+         ; get the first row (optionally the header)
+         [first-row (next-row)]
 
-                       ; create a list of column names/indices
-                       [column-names (if header first-row (range (length first-row)))]
+         ; create a list of column names/indices
+         [column-names (if header first-row (range (length first-row)))]
 
-                       ; parse cells, look for n/a as well
-                       [parse-row (λ (r)
-                                    (for/list ([x r])
-                                      (let ([n (string->number x)])
-                                        (cond
-                                          [n n]
-                                          [(member x na-values string-ci=?) na]
-                                          [else x]))))]
+         ; parse cells, look for n/a as well
+         [parse-row (λ (r)
+                      (for/list ([x r])
+                        (let ([n (string->number x)])
+                          (cond
+                            [n n]
+                            [(member x na-values string-ci=?) na]
+                            [else x]))))]
 
-                       ; initialize a new table builder
-                       [builder (new table-builder% [columns column-names])])
+         ; initialize a new table builder
+         [builder (new table-builder% [columns column-names])])
 
-                  ; add all the rows to the table
-                  (csv-for-each (λ (r) (send builder add-row (parse-row r))) next-row)
+    ; add all the rows to the table
+    (csv-for-each (λ (r) (send builder add-row (parse-row r))) next-row)
 
-                  ; return the table
-                  (send builder build)))))
+    ; return the table
+    (send builder build)))
 
 ;; ----------------------------------------------------
 
-(define (table-read/json port-or-filename #:lines? [lines #f])
-  (table-read port-or-filename
-              (λ (port)
-                (let ([builder (new table-builder%)])
-                  (if lines
+(define (table-read/json port #:lines? [lines #f])
+  (let ([builder (new table-builder%)])
+    (if lines
 
-                      ; read each line as a single record
-                      (do ([r (read-json port)
-                              (read-json port)])
-                        [(eof-object? r)]
-                        (send builder add-record r))
+        ; read each line as a single record
+        (do ([r (read-json port)
+                (read-json port)])
+          [(eof-object? r)]
+          (send builder add-record r))
 
-                      ; read the entire json first
-                      (let ([x (read-json port)])
-                        (match x
+        ; read the entire json first
+        (let ([x (read-json port)])
+          (match x
                 
-                          ; column-oriented object -- {"col": [x1, x2, ...], ...}
-                          [(hash-table (ks (list xs ...)) ...)
-                           (letrec ([keys (hash-keys x)]
+            ; column-oriented object -- {"col": [x1, x2, ...], ...}
+            [(hash-table (ks (list xs ...)) ...)
+             (letrec ([keys (hash-keys x)]
 
-                                    ; recursively add the rows together
-                                    [add-rows (λ (cols)
-                                                (unless (empty? (first cols))
-                                                  (send builder add-row (map first cols) keys)
-                                                  (add-rows (map rest cols))))])
-                             (add-rows (hash-values x)))]
+                      ; recursively add the rows together
+                      [add-rows (λ (cols)
+                                  (unless (empty? (first cols))
+                                    (send builder add-row (map first cols) keys)
+                                    (add-rows (map rest cols))))])
+               (add-rows (hash-values x)))]
 
-                          ; row-oriented list -- [{"col1": x, "col2": y, ...}, ...]
-                          [(list records ...)
-                           (for ([r records])
-                             (send builder add-record r))]
+            ; row-oriented list -- [{"col1": x, "col2": y, ...}, ...]
+            [(list records ...)
+             (for ([r records])
+               (send builder add-record r))]
                 
-                          ; unknown json orientation
-                          [else #f])))
+            ; unknown json orientation
+            [else #f])))
 
-                  ; construct the table
-                  (send builder build)))))
+    ; construct the table
+    (send builder build)))
+
+;; ----------------------------------------------------
+
+(module+ test
+  (require rackunit)
+
+  ; load a table from disk
+  (define books (call-with-input-file "test/books.csv" table-read/csv))
+
+  ; ensure shape, do a quick filter and check results
+  (check-equal? (table-length books) 211)
+  (check-equal? (table-length (table-drop-na books)) 112))

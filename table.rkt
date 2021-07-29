@@ -197,14 +197,19 @@ All rights reserved.
 
 ;; ----------------------------------------------------
 
-;(define (table-distinct df k [keep 'first])
-;  (let ([col (table-column df k)])
-;    (struct-copy table
-;                 df
-;                 [pk (let ([ix (build-secondary-index col #f keep)])
-;                       (struct-copy column
-;                                    (table-pk df)
-;                                    [index (secondary-index->index ix)]))])))
+(define (table-distinct df k [keep 'first])
+  (let ([h (make-hash)])
+    (for ([i (table-index df)]
+          [x (table-column df k)] #:when x)
+      (case keep
+        [(first) (hash-ref! h x i)]
+        [(last)  (hash-set! h x i)]
+        [(none)  (hash-set! h x (if (hash-has-key? h x) #f i))]))
+
+    ; build the new table index
+    (struct-copy table
+                 df
+                 [index (for/vector ([(_ i) h] #:when i) i)])))
 
 ;; ----------------------------------------------------
 
@@ -251,6 +256,11 @@ All rights reserved.
   (check-equal? (table-index (table-filter age-filter df '(age))) #(2 3))
   (check-equal? (table-index (table-sort df 'age <)) #(2 3 4 1 0))
   (check-equal? (table-index (table-reverse df)) #(4 3 2 1 0))
+
+  ; distinct column values
+  (check-equal? (table-index (table-distinct df 'gender 'first)) #(0 1))
+  (check-equal? (table-index (table-distinct df 'gender 'last)) #(4 2))
+  (check-equal? (table-index (table-distinct df 'gender 'none)) #())
 
   ; check reindexing
   (let ([rdf (table-reindex (table-filter age-filter df '(age)))])
