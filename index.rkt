@@ -9,121 +9,239 @@ All rights reserved.
 
 |#
 
+(require racket/generator)
+
+;; ----------------------------------------------------
+
+(require "column.rkt")
+(require "table.rkt")
+
+;; ----------------------------------------------------
+
 (provide (all-defined-out)
          (except-out (struct-out index-stream)))
 
 ;; ----------------------------------------------------
 
-(struct index-stream [ix data n]
+(struct index [keys less-than?]
+  #:property prop:sequence
+  (λ (ix) (index-scan ix))
+
+  ; custom printing
+  #:methods gen:custom-write
+  [(define write-proc
+     (λ (ix port mode)
+       (fprintf port "#<index ~a [~a keys]>"
+                (index-less-than? ix)
+                (index-length ix))))])
+
+;; ----------------------------------------------------
+
+(struct index-stream [g i]
   #:methods gen:stream
   [(define (stream-empty? s)
-     (>= (index-stream-n s) (vector-length (index-stream-ix s))))
-
-   ; get the key for this index
+     (not (index-stream-i s)))
    (define (stream-first s)
-     (let ([i (vector-ref (index-stream-ix s) (index-stream-n s))])
-       (vector-ref (index-stream-data s) i)))
-
-   ; advance to the next index
+     (index-stream-i s))
    (define (stream-rest s)
-     (struct-copy index-stream s [n (add1 (index-stream-n s))]))])
+     (let ([g (index-stream-g s)])
+       (index-stream g (g))))])
 
 ;; ----------------------------------------------------
 
-(define (index->stream ix data)
-  (index-stream ix data 0))
+(define (index-scan ix #:from [from #f] #:to [to #f])
+  (let* ([n (index-length ix)]
+         [keys (index-keys ix)]
+
+         ; key range indices of the scan
+         [start (if from (index-find ix from #f) 0)]
+         [end (if to (index-find ix to #f) n)]
+
+         ; the final range
+         [key-range (cond
+                      [(>= start n) empty-sequence]
+
+                      ; only the start key is scanned
+                      [(= start end)
+                       (in-range start (add1 start))]
+
+                      ; exclusive to
+                      [else
+                       (in-range start end)])]
+
+         ; build a generator for iteration
+         [g (generator ()
+              (for ([k key-range])
+                (let ([indices (cdr (vector-ref keys k))])
+                  (for ([i indices])
+                    (yield i))))
+
+              ; end of key range...
+              (for ([i (in-cycle '(#f))])
+                (yield i)))])
+    (index-stream g (g))))
 
 ;; ----------------------------------------------------
 
-(define empty-index #())
+(define (build-index seq less-than? [keep 'all])
+  (let* ([h (make-hash)]
+         [insert (λ (x i)
+                   (when x
+                     (hash-update! h
+                                   x
+                                   (λ (ix)
+                                     (case keep
+                                       [(first) (if (null? ix) (list i) ix)]
+                                       [(last)  (list i)]
+                                       [(none)  (and (null? ix) (list i))]
+                                       [else    (cons i ix)]))
+                                   '())))])
+
+    ; build the secondary index hash
+    (for ([(x i) (in-indexed seq)])
+      (insert x i))
+
+    ; build the key-space vector, then sort the keys
+    (let ([keys (for/vector ([(k indices) h] #:when indices)
+                  (cons k (reverse indices)))])
+      (vector-sort! keys less-than? #:key car)
+
+      ; build the final, secondary index
+      (index keys less-than?))))
 
 ;; ----------------------------------------------------
 
-(define (build-index n)
-  (build-vector n identity))
+(define empty-index (index #() <))
 
 ;; ----------------------------------------------------
 
-(define index-length vector-length)
+(define (index-length ix)
+  (vector-length (index-keys ix)))
 
 ;; ----------------------------------------------------
 
-(define index-empty? vector-empty?)
+(define (index-empty? ix)
+  (zero? (index-length ix)))
 
 ;; ----------------------------------------------------
 
-(define (index-compact ix v)
-  (for/vector ([i ix])
-    (vector-ref v i)))
+(define (index-find ix key [exact #t])
+  (let* ([keys (index-keys ix)]
+         [n (vector-length keys)]
+         [less-than? (index-less-than? ix)])
+    (letrec ([search (λ (i start end)
+                       (let ([group (vector-ref keys i)])
+                         (cond
+                           [(equal? key (car group)) i]
+
+                           ; nothing more to search?
+                           [(= i start)
+                            (and (not exact)
+                                 (if (less-than? key (car group))
+                                     i
+                                     end))]
+
+                           ; search left or right?
+                           [else
+                            (if (less-than? key (car group))
+                                (let ([ni (arithmetic-shift (+ start i) -1)])
+                                  (search ni start i))
+                                (let ([ni (arithmetic-shift (+ i end) -1)])
+                                  (search ni i end)))])))])
+      (if (index-empty? ix)
+          #f
+          (search (arithmetic-shift n -1) 0 n)))))
 
 ;; ----------------------------------------------------
 
-(define (index-ref ix v n)
-  (vector-ref v (vector-ref ix n)))
+(define (index-member ix key)
+  (let ([i (index-find ix key)])
+    (and i (index-ref ix i))))
 
 ;; ----------------------------------------------------
 
-(define (index-for-each proc ix v)
-  (for ([i ix])
-    (proc i (vector-ref v i))))
+(define (index-ref ix n)
+  (vector-ref (index-keys ix) n))
 
 ;; ----------------------------------------------------
 
-(define (index-map proc ix v)
-  (vector-map (λ (i) (proc i (vector-ref v i))) ix))
+(define (index-map ix v #:from [from #f] #:to [to #f])
+  (sequence-map (λ (i) (vector-ref v i)) (index-scan ix #:from from #:to to)))
 
 ;; ----------------------------------------------------
 
-(define (index-filter proc ix v)
-  (vector-filter (λ (i) (proc i (vector-ref v i))) ix))
+(define (index-min ix)
+  (if (index-empty? ix)
+      #f
+      (index-ref ix 0)))
 
 ;; ----------------------------------------------------
 
-(define (index-head ix n)
-  (vector-take ix (min (index-length ix) n)))
-
-;; ----------------------------------------------------
-
-(define (index-tail ix n)
-  (vector-take-right ix (min (index-length ix) n)))
-
-;; ----------------------------------------------------
-
-(define (index-reverse ix)
+(define (index-max ix)
   (let ([n (index-length ix)])
-    (build-vector n (λ (i) (vector-ref ix (- n i 1))))))
+    (if (zero? n)
+        #f
+        (index-ref ix (sub1 n)))))
 
 ;; ----------------------------------------------------
 
-(define (index-sort ix v less-than?)
-  (vector-sort ix less-than? #:key (λ (n) (vector-ref v n))))
+(define (index-median ix)
+  (if (index-empty? ix)
+      #f
+      (let ([n (length (cdr (index-min ix)))])
+        (for/fold ([i 0]
+                   [m n]
+                   [t n]
+                   #:result (index-ref ix i))
+                  ([key (sequence-tail (index-keys ix) 1)])
+          (let ([count (+ (length (cdr key)) t)])
+            (if (>= count (* m 2))
+                (values (+ i 1) (+ m (length (cdr (index-ref ix i)))) count)
+                (values i m count)))))))
+
+;; ----------------------------------------------------
+
+(define (index-mode ix)
+  (if (index-empty? ix)
+      #f
+      (vector-argmax length (index-keys ix))))
 
 ;; ----------------------------------------------------
 
 (module+ test
   (require rackunit)
 
-  ; build a simple indexes
-  (define ix (build-index 5))
-  (define ix-head (index-head ix 2))
-  (define ix-tail (index-tail ix 2))
-  (define ix-reverse (index-reverse ix))
+  ; build a simple sequence of integers and index them
+  (define xs #(6 3 6 0 4 1 0 9 9 9 4 9 7 1 9 3 5 4 5 8 8 5 3 1 4 5 6 8 0 6))
+  (define sorted (vector-sort xs <))
+  (define ix (build-index xs <))
 
-  ; simple index tests
-  (check-equal? ix #(0 1 2 3 4))
-  (check-equal? ix-head #(0 1))
-  (check-equal? ix-tail #(3 4))
-  (check-equal? ix-reverse #(4 3 2 1 0))
+  ; ensure the order and integrity of the index
+  (check-equal? (sequence->list (sequence-map (λ (i) (vector-ref xs i)) ix))
+                (vector->list sorted))
 
-  ; create some simple data to work with
-  (define data #(a b c d e))
+  ; check distinct indexes
+  (check-equal? (index-keys (build-index xs < 'first))
+                #((0 3) (1 5) (3 1) (4 4) (5 16) (6 0) (7 12) (8 19) (9 7)))
+  (check-equal? (index-keys (build-index xs < 'last))
+                #((0 28) (1 23) (3 22) (4 24) (5 25) (6 29) (7 12) (8 27) (9 14)))
+  (check-equal? (index-keys (build-index xs < 'none))
+                #((7 12)))
 
-  ; test streams
-  (check-equal? (stream->list (index->stream ix data)) '(a b c d e))
-  (check-equal? (stream->list (index->stream ix-head data)) '(a b))
-  (check-equal? (stream->list (index->stream ix-tail data)) '(d e))
-  (check-equal? (stream->list (index->stream ix-reverse data)) '(e d c b a))
+  ; check min, max, median, and mode
+  (check-equal? (car (index-min ix)) (vector-argmin identity xs))
+  (check-equal? (car (index-max ix)) (vector-argmax identity xs))
+  (check-equal? (car (index-median ix)) (vector-ref sorted (quotient (vector-length xs) 2)))
+  (check-equal? (car (index-mode ix)) (argmax (λ (n)
+                                                (vector-count (λ (x) (= x n)) xs))
+                                              (range 10)))
 
-  ; test map + filter
-  (check-equal? (index-map (λ (i x) (~a x)) ix data) #("a" "b" "c" "d" "e"))
-  (check-equal? (index-filter (λ (i x) (even? i)) ix data) #(0 2 4)))
+  ; ensure keys not found
+  (check-false (index-find ix -1))
+
+  ; check scanning and mapping
+  (check-equal? (sequence->list (index-map ix xs #:from 100)) '())
+  (check-equal? (sequence->list (index-map ix xs #:to 4)) '(0 0 0 1 1 1 3 3 3))
+  (check-equal? (sequence->list (index-map ix xs #:from 6)) '(6 6 6 6 7 8 8 8 9 9 9 9 9))
+  (check-equal? (sequence->list (index-map ix xs #:from 2 #:to 6)) '(3 3 3 4 4 4 4 5 5 5 5))
+  (check-equal? (sequence->list (index-map ix xs #:from 5 #:to 5)) '(5 5 5 5)))

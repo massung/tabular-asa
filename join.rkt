@@ -9,7 +9,7 @@ All rights reserved.
 
 |#
 
-(require "group.rkt")
+(require "index.rkt")
 (require "table.rkt")
 (require "read.rkt")
 (require "print.rkt")

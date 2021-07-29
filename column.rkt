@@ -9,7 +9,7 @@ All rights reserved.
 
 |#
 
-(require "index.rkt")
+(require "utils.rkt")
 
 ;; ----------------------------------------------------
 
@@ -19,7 +19,10 @@ All rights reserved.
 
 (struct column [name index data]
   #:property prop:sequence
-  (λ (col) (column->stream col))
+  (λ (col)
+    (let ([ix (column-index col)]
+          [data (column-data col)])
+      (sequence-map (λ (i) (vector-ref data i)) ix)))
 
   ; custom printing
   #:methods gen:custom-write
@@ -31,55 +34,42 @@ All rights reserved.
 
 ;; ----------------------------------------------------
 
-(define (column->stream col)
-  (index->stream (column-index col) (column-data col)))
-
-;; ----------------------------------------------------
-
-(define empty-column (column 'emtpy empty-index #()))
-
-;; ----------------------------------------------------
-
-(define (build-index-column n #:name [name '||])
-  (let ([ix (build-index n)])
-    (column name ix ix)))
+(define empty-column (column '|| #() #()))
 
 ;; ----------------------------------------------------
 
 (define (build-column seq #:name [name #f])
-  (let ([data (for/vector ([x seq]) x)])
-    (column (or name (gensym "col")) (build-index (vector-length data)) data)))
+  (let* ([data (for/vector ([x seq]) x)]
+         [index (build-vector (vector-length data) identity)])
+    (column (or name (gensym "col")) index data)))
 
 ;; ----------------------------------------------------
 
 (define (column-length col)
-  (index-length (column-index col)))
+  (vector-length (column-index col)))
 
 ;; ----------------------------------------------------
 
 (define (column-empty? col)
-  (zero? (column-length col)))
+  (vector-empty? (column-index col)))
 
 ;; ----------------------------------------------------
 
 (define (column-equal? col seq)
-  (call/ec (λ (return)
-             (do ([s1 (column->stream col) (stream-rest s1)]
-                  [s2 (sequence->stream seq) (stream-rest s2)])
-               [(or (stream-empty? s1) (stream-empty? s2))
-                (and (stream-empty? s1) (stream-empty? s2))]
-               (unless (equal? (stream-first s1)
-                               (stream-first s2))
-                 (return #f))))))
+  (let ([xs (sequence->stream col)])
+    (and (for/and ([y seq])
+           (and (not (stream-empty? xs))
+                (let ([x (stream-first xs)])
+                  (set! xs (stream-rest xs))
+                  (equal? x y))))
+         (stream-empty? xs))))
 
 ;; ----------------------------------------------------
 
 (define (column-compact col)
-  (let ([ix (column-index col)])
-    (struct-copy column
-                 col
-                 [index (build-index (index-length ix))]
-                 [data (index-compact ix (column-data col))])))
+  (struct-copy column
+               col
+               [data (for/vector ([x col]) x)]))
 
 ;; ----------------------------------------------------
 
@@ -91,54 +81,39 @@ All rights reserved.
 ;; ----------------------------------------------------
 
 (define (column-ref col n)
-  (index-ref (column-index col) (column-data col) n))
-
-;; ----------------------------------------------------
-
-(define (column-for-each proc col)
-  (index-for-each proc (column-index col) (column-data col)))
-
-;; ----------------------------------------------------
-
-(define (column-map proc col)
-  (struct-copy column
-               col
-               [data (index-map proc (column-index col) (column-data col))]))
-
-;; ----------------------------------------------------
-
-(define (column-filter proc col)
-  (struct-copy column
-               col
-               [index (index-filter proc (column-index col) (column-data col))]))
+  (vector-ref (column-data col) (vector-ref (column-index col) n)))
 
 ;; ----------------------------------------------------
 
 (define (column-head col [n 10])
   (struct-copy column
                col
-               [index (index-head (column-index col) n)]))
+               [index (vector-head (column-index col) n)]))
 
 ;; ----------------------------------------------------
 
 (define (column-tail col [n 10])
   (struct-copy column
                col
-               [index (index-tail (column-index col) n)]))
+               [index (vector-tail (column-index col) n)]))
 
 ;; ----------------------------------------------------
 
 (define (column-reverse col)
   (struct-copy column
                col
-               [index (index-reverse (column-index col))]))
+               [index (vector-reverse (column-index col))]))
 
 ;; ----------------------------------------------------
 
 (define (column-sort col less-than?)
-  (struct-copy column
-               col
-               [index (index-sort (column-index col) (column-data col) less-than?)]))
+  (let ([ix (column-index col)]
+        [data (column-data col)])
+    (struct-copy column
+                 col
+                 [index (vector-sort ix
+                                     less-than?
+                                     #:key (λ (i) (vector-ref data i)))])))
 
 ;; ----------------------------------------------------
 
@@ -146,12 +121,10 @@ All rights reserved.
   (require rackunit)
 
   ; create a simple column
-  (define c (build-column (range 5) #:name 'foo))
+  (define c (build-column 5 #:name 'foo))
 
   ; verify the column
   (check-equal? (column-name c) 'foo)
-  (check-equal? (column-index c) #(0 1 2 3 4))
-  (check-equal? (column-data c) #(0 1 2 3 4))
   (check-equal? (column-length c) 5)
   (check-equal? (column-empty? c) #f)
 
@@ -172,11 +145,14 @@ All rights reserved.
   (check-data (column-head c 2) #(0 1))
   (check-data (column-tail c 2) #(3 4))
 
-  ; iteration and indexing
-  (column-for-each (λ (i x) (check-equal? i x)) c)
+  ; compaction test
+  (check-equal? (column-data (column-compact (column-head c 2))) #(0 1))
 
-  ; map, filter, reverse, sort, etc.
-  (check-data (column-map (λ (i x) (* 10 x)) c) #(0 10 20 30 40))
-  (check-data (column-filter (λ (i x) (even? x)) c) #(0 2 4))
-  (check-data (column-reverse c) #(4 3 2 1 0))
-  (check-data (column-sort c >) #(4 3 2 1 0)))
+  ; sequence property test
+  (for ([x c] [i (in-naturals)])
+    (check-equal? i x))
+
+  ; mapping, filtering, etc.
+  (check-equal? (sequence->list (sequence-map add1 c)) '(1 2 3 4 5))
+  (check-equal? (sequence->list (sequence-filter even? c)) '(0 2 4))
+  (check-equal? (sequence-fold + 0 c) 10))

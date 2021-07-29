@@ -9,9 +9,7 @@ All rights reserved.
 
 |#
 
-(require "index.rkt")
 (require "column.rkt")
-(require "group.rkt")
 (require "utils.rkt")
 
 ;; ----------------------------------------------------
@@ -20,244 +18,200 @@ All rights reserved.
 
 ;; ----------------------------------------------------
 
-(struct table [pk column-data indexes]
+(struct table [index data]
   #:property prop:sequence
-  (λ (df) (table->row-stream df))
-
+  (λ (df)
+    (sequence-map (λ (i)
+                    (cons i (for/list ([col (table-data df)])
+                              (vector-ref (cdr col) i))))
+                  (table-index df)))
+  
   ; custom printing
   #:methods gen:custom-write
   [(define write-proc
      (λ (df port mode)
-       (fprintf port "#<table [~a rows x ~a cols]>"
-                (column-length (table-pk df))
-                (sequence-length (table-column-data df)))))])
+       (let-values ([(rows cols) (table-shape df)])
+         (fprintf port "#<table [~a rows x ~a cols]>" rows cols))))])
 
 ;; ----------------------------------------------------
 
-(define (table->row-stream df [indices #f] #:keep-index? [keep-index #t])
-  (let ([key-stream (column->stream (table-pk df))])
-    (stream-map (λ (i)
-                  (table-row df i #:keep-index? keep-index))
-                (or indices (range (table-length df))))))
-
-;; ----------------------------------------------------
-
-(define (table->record-stream df [indices #f] #:keep-index? [keep-index #t])
-  (let* ([columns (table-column-names df)]
-
-         ; optionally prepend the index column name
-         [ks (if keep-index (cons (column-name (table-pk df)) columns) columns)]
-
-         ; convert each row (list) to a record (hash)
-         [row->record (λ (row)
-                        (for/hash ([k ks] [v row])
-                          (values k v)))])
-    (stream-map row->record (table->row-stream df indices #:keep-index? keep-index))))
-
-;; ----------------------------------------------------
-
-(define empty-table (table (column null #() #()) '() #hash()))
+(define empty-table (table #() '()))
 
 ;; ----------------------------------------------------
 
 (define (table-length df)
-  (column-length (table-pk df)))
+  (vector-length (table-index df)))
 
 ;; ----------------------------------------------------
 
 (define (table-shape df)
-  (values (table-length df) (sequence-length (table-columns df))))
+  (values (table-length df) (length (table-data df))))
 
 ;; ----------------------------------------------------
 
 (define (table-empty? df)
-  (or (zero? (table-length df))
-      (empty? (table-column-data df))))
-
+  (or (empty? (table-data df))
+      (zero? (table-length df))))
+      
 ;; ----------------------------------------------------
 
-(define (table-index df [k #f] [less-than? #f] [keep 'all])
-  (if k
-      (hash-ref! (table-indexes df)
-                 (list k less-than? keep)
-                 (λ ()
-                   (let ([col (table-column df k)])
-                     (build-secondary-index col less-than? keep))))
-      (column-index (table-pk df))))
-
-;; ----------------------------------------------------
-
-(define (table-compact df #:reindex? [reindex #t])
-  (let ([ix (table-index df)])
-    (table (if reindex
-               (build-index-column (index-length ix))
-               (column-compact (table-pk df)))
-           (for/list ([col (table-column-data df)])
-             (match col
-               [(cons name data)
-                (cons name (index-compact ix data))]))
-           (make-hash))))
-
-;; ----------------------------------------------------
-
-(define (table-for-each proc df [cut #f] #:keep-index? [keep-index #t])
-  (stream-for-each (λ (row) (apply proc row))
-                   (let ([df-cut (if cut (table-cut df cut) df)])
-                     (table->row-stream df-cut #:keep-index? keep-index))))
-
-;; ----------------------------------------------------
-
-(define (table-map proc df [cut #f] #:keep-index? [keep-index #t])
-  (let* ([df-cut (if cut (table-cut df cut) df)]
-         [rows (table->row-stream df-cut #:keep-index? keep-index)])
-    (stream-map (λ (row) (apply proc row)) rows)))
-
-;; ----------------------------------------------------
-
-(define (table-fold proc initial-value df [cut #f] #:keep-index? [keep-index #t])
-  (let* ([df-cut (if cut (table-cut df cut) df)]
-         [rows (table->row-stream df-cut #:keep-index? keep-index)])
-    (for/fold ([acc initial-value])
-              ([row rows])
-      (apply proc acc row))))
-
-;; ----------------------------------------------------
-
-(define (table-filter pred df [cut #f] #:keep-index? [keep-index #t])
-  (let* ([df-cut (if cut (table-cut df cut) df)]
-
-         ; stream the rows for the current index
-         [s (table->row-stream df-cut #:keep-index? keep-index)]
-
-         ; filter index by result of row predicate
-         [ix (for/vector ([i (table-index df)] [r s] #:when (apply pred r))
-               i)])
-    (struct-copy table
-                 df
-                 [pk (struct-copy column (table-pk df) [index ix])])))
-
-;; ----------------------------------------------------
-
-(define (table-column-names df)
-  (map car (table-column-data df)))
+(define (table-reindex df)
+  (table (build-vector (table-length df) identity)
+         (for/list ([col (table-data df)])
+           (cons (car col)
+                 (for/vector ([i (table-index df)])
+                   (vector-ref (cdr col) i))))))
 
 ;; ----------------------------------------------------
 
 (define (table-columns df)
-  (for/list ([col (table-column-data df)])
+  (for/list ([col (table-data df)])
     (match col
-      [(cons name data)
-       (column name (table-index df) data)])))
+      [(cons k v)
+       (column k (table-index df) v)])))
+
+;; ----------------------------------------------------
+
+(define (table-column-names df)
+  (map car (table-data df)))
 
 ;; ----------------------------------------------------
 
 (define (table-column df k)
-  (match (assq k (table-column-data df))
+  (match (assq k (table-data df))
     [(cons name data)
      (column name (table-index df) data)]
-    [_ (error "Column not found in table:" k)]))
+    [else
+     (error "Column not found in table:" k)]))
 
 ;; ----------------------------------------------------
 
-(define (table-row df n #:keep-index? [keep-index #t])
-  (let* ([ix (table-index df)]
-         [row (for/list ([col (table-column-data df)])
-                (index-ref ix (cdr col) n))])
-    (if keep-index (cons (column-ref (table-pk df) n) row) row)))
+(define (table-with-column df seq #:name [name #f])
+  (unless name
+    (set! name (gensym "col")))
+
+  ; empty tables get an entirely new index
+  (if (empty? (table-data df))
+      (let ([col (build-column seq)])
+        (table (column-index col)
+               (list (cons name (column-data col)))))
+
+      ; create a new data vector using the existing index
+      (let ([v (make-vector (+ (vector-argmax identity (table-index df)) 1) #f)])
+        (for ([i (table-index df)] [x seq])
+          (vector-set! v i x))
+
+        ; append the column name . data to the table
+        (struct-copy table
+                     df
+                     [data (append (table-data df) (list (cons name v)))]))))
 
 ;; ----------------------------------------------------
 
-(define (table-record df n #:keep-index? [keep-index #t])
-  (let ([cols (table-columns df)])
-    (for/hash ([col (if keep-index (cons (table-pk df) cols) cols)])
-      (values (column-name col) (column-ref col n)))))
-
-;; ----------------------------------------------------
-
-(define (table-head df [n 10])
+(define (table-cut df ks)
   (struct-copy table
                df
-               [pk (column-head (table-pk df) n)]))
-
-;; ----------------------------------------------------
-
-(define (table-tail df [n 10])
-  (struct-copy table
-               df
-               [pk (column-tail (table-pk df) n)]))
-
-;; ----------------------------------------------------
-
-(define (table-drop-na df [ks (table-column-names df)])
-  (table-filter all? df ks #:keep-index? #f))
+               [data (remq* '(#f) (for/list ([k ks])
+                                    (assq k (table-data df))))]))
 
 ;; ----------------------------------------------------
 
 (define (table-drop df ks)
   (struct-copy table
                df
-               [column-data (filter-not (λ (col)
-                                          (member (car col) ks))
-                                        (table-column-data df))]))
+               [data (filter-not (λ (col)
+                                   (member (car col) ks))
+                                 (table-data df))]))
 
 ;; ----------------------------------------------------
 
-(define (table-cut df ks)
-  (let ([cols (table-column-data df)])
-    (struct-copy table
-                 df
-                 [column-data (filter identity
-                                      (for/list ([k ks])
-                                        (match k
-                                          [(list org as)
-                                           (cons as (cdr (assq org cols)))]
-                                          [else
-                                           (assq k cols)])))])))
+(define (table-row df n)
+  (let ([ix (table-index df)])
+    (cons (vector-ref ix n)
+          (for/list ([col (table-data df)])
+            (vector-ref (cdr col) n)))))
 
 ;; ----------------------------------------------------
 
-(define (table-sort-by df k less-than?)
-  (let ([pk (table-pk df)])
-    (struct-copy table
-                 df
-                 [pk (let ([sorted (column-sort (table-column df k) less-than?)])
-                       (struct-copy column
-                                    pk
-                                    [index (column-index sorted)]))])))
+(define (table-record df n)
+  (for/hash ([k (table-data df)]
+             [v (cdr (table-row df n))])
+    (values (car k) v)))
 
 ;; ----------------------------------------------------
 
-(define (table-index-by df k #:drop? [drop #t])
+(define (table-records df)
+  (let ([ks (table-column-names df)])
+    (sequence-map (λ (row)
+                    (for/hash ([k ks] [v (cdr row)])
+                      (values k v)))
+                  df)))
+
+;; ----------------------------------------------------
+
+(define (table-head df [n 10])
   (struct-copy table
-               (if drop (table-drop df (list k)) df)
-               [pk (table-column df k)]))
+               df
+               [index (vector-head (table-index df) n)]))
 
 ;; ----------------------------------------------------
 
-(define (table-with-index df seq #:name [name '||])
-  (let ([pk (table-pk df)])
+(define (table-tail df [n 10])
+  (struct-copy table
+               df
+               [index (vector-tail (table-index df) n)]))
+
+;; ----------------------------------------------------
+
+(define (table-select df seq)
+  (let ([ix (table-index df)])
     (struct-copy table
                  df
-                 [pk (let ([ix (for/vector ([i seq]) i)])
-                       (column name ix (column-data pk)))])))
+                 [index (for/vector ([i ix] [x seq] #:when x) i)])))
 
 ;; ----------------------------------------------------
 
-(define (table-distinct df k [keep 'first])
+(define (table-map proc df [ks #f] #:keep-index? [keep-index (not ks)])
+  (sequence-map (λ (row)
+                  (apply proc (if keep-index row (cdr row))))
+                (if ks (table-cut df ks) df)))
+
+;; ----------------------------------------------------
+
+(define (table-filter proc df [ks #f] #:keep-index? [keep-index (not ks)])
+  (table-select df (table-map proc df ks #:keep-index? keep-index)))
+
+;; ----------------------------------------------------
+
+(define (table-drop-na df)
+  (table-select df (sequence-map all? df)))
+
+;; ----------------------------------------------------
+
+(define (table-sort df k less-than?)
   (let ([col (table-column df k)])
     (struct-copy table
                  df
-                 [pk (let ([ix (build-secondary-index col #f keep)])
-                       (struct-copy column
-                                    (table-pk df)
-                                    [index (secondary-index->index ix)]))])))
+                 [index (let ([sorted (column-sort col less-than?)])
+                          (column-index sorted))])))
+
+;; ----------------------------------------------------
+
+;(define (table-distinct df k [keep 'first])
+;  (let ([col (table-column df k)])
+;    (struct-copy table
+;                 df
+;                 [pk (let ([ix (build-secondary-index col #f keep)])
+;                       (struct-copy column
+;                                    (table-pk df)
+;                                    [index (secondary-index->index ix)]))])))
 
 ;; ----------------------------------------------------
 
 (define (table-reverse df)
   (struct-copy table
                df
-               [pk (column-reverse (table-pk df))]))
+               [index (vector-reverse (table-index df))]))
 
 ;; ----------------------------------------------------
 
@@ -265,12 +219,49 @@ All rights reserved.
   (require rackunit)
 
   ; create a simple table by hand
-  (define df (table (build-index-column 5)
+  (define df (table (build-vector 5 identity)
                     (list (cons 'name #("Jeff" "Jennie" "Isabel" "Dave" "Bob"))
                           (cons 'age #(44 39 12 24 38))
-                          (cons 'gender #(m f f m m)))
-                    (make-hasheq)))
+                          (cons 'gender #(m f f m m)))))
 
-  ; test row/record conversion
+  ; test shape/size
+  (check-equal? (table-length df) 5)
+  (check-equal? (length (table-data df)) 3)
+
+  ; test unknown column
+  (check-exn exn:fail? (λ () (table-column df 'foo)))
+
+  ; check row/record conversion
   (check-equal? (table-row df 0) '(0 "Jeff" 44 m))
-  (check-equal? (table-record df 0) #hash((|| . 0) (name . "Jeff") (age . 44) (gender . m))))
+  (check-equal? (table-record df 0) #hash((name . "Jeff") (age . 44) (gender . m)))
+
+  ; check dropping, cutting
+  (check-equal? (table-column-names (table-cut df '(name age))) '(name age))
+  (check-equal? (table-column-names (table-drop df '(age))) '(name gender))
+
+  ; check head, tail
+  (check-equal? (sequence->list (table-column (table-head df 2) 'name)) '("Jeff" "Jennie"))
+  (check-equal? (sequence->list (table-column (table-tail df 2) 'name)) '("Dave" "Bob"))
+
+  (define (age-filter age)
+    (< age 30))
+
+  ; check mapping, filtering, etc.
+  (check-equal? (sequence->list (table-map age-filter df '(age))) '(#f #f #t #t #f))
+  (check-equal? (table-index (table-filter age-filter df '(age))) #(2 3))
+  (check-equal? (table-index (table-sort df 'age <)) #(2 3 4 1 0))
+  (check-equal? (table-index (table-reverse df)) #(4 3 2 1 0))
+
+  ; check reindexing
+  (let ([rdf (table-reindex (table-filter age-filter df '(age)))])
+    (check-equal? (table-index rdf) #(0 1))
+    (check-equal? (table-data rdf) '((name . #("Isabel" "Dave"))
+                                     (age . #(12 24))
+                                     (gender . #(f m)))))
+
+  ; check adding columns
+  (let ([ndf (table-with-column empty-table (in-range 5))])
+    (check-equal? (table-length ndf) 5)
+    (check-true (all? (table-map = ndf))))
+  (let ([ndf (table-with-column df (table-map age-filter df '(age)) #:name 'child)])
+    (check-equal? (column-data (table-column ndf 'child)) #(#f #f #t #t #f))))

@@ -15,9 +15,9 @@ All rights reserved.
 
 ;; ----------------------------------------------------
 
-(require "index.rkt")
 (require "column.rkt")
 (require "table.rkt")
+(require "utils.rkt")
 
 ;; ----------------------------------------------------
 
@@ -82,11 +82,9 @@ All rights reserved.
 
     ; build the final table
     (define/public (build)
-      (let ([pk (build-index-column i)])
-        (table pk
-               (for/list ([k column-order])
-                 (cons k (vector-take (hash-ref column-data k) i)))
-               (make-hash))))))
+      (table (build-vector i identity)
+             (for/list ([k column-order])
+               (cons k (vector-take (hash-ref column-data k) i)))))))
 
 ;; ----------------------------------------------------
 

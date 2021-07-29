@@ -23,10 +23,26 @@ All rights reserved.
 
 ;; ----------------------------------------------------
 
-(define (all? . xs)
+(define (all? xs)
   (for/and ([x xs]) x))
 
 ;; ----------------------------------------------------
 
-(define (any? . xs)
+(define (any? xs)
   (for/or ([x xs]) x))
+
+;; ----------------------------------------------------
+
+(define (vector-reverse v)
+  (let ([n (vector-length v)])
+    (build-vector n (λ (i) (vector-ref v (- n i 1))))))
+
+;; ----------------------------------------------------
+
+(define (vector-head v n)
+  (vector-take v (min (vector-length v) n)))
+
+;; ----------------------------------------------------
+
+(define (vector-tail v n)
+  (vector-take-right v (min (vector-length v) n)))
