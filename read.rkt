@@ -182,5 +182,5 @@ All rights reserved.
   (define books (call-with-input-file "test/books.csv" table-read/csv))
 
   ; ensure shape, do a quick filter and check results
-  (check-equal? (table-length books) 211)
+  (check-equal? (table-length books) 210)
   (check-equal? (table-length (table-drop-na books)) 112))
