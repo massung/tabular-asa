@@ -10,6 +10,7 @@ All rights reserved.
 |#
 
 (require "column.rkt")
+(require "compare.rkt")
 (require "utils.rkt")
 
 ;; ----------------------------------------------------
@@ -108,6 +109,16 @@ All rights reserved.
 
 ;; ----------------------------------------------------
 
+(define (table-with-columns-renamed df rename-map)
+  (struct-copy table
+               df
+               [data (for/list ([col (table-data df)])
+                       (match col
+                         [(cons k v)
+                          (cons (hash-ref rename-map k k) v)]))]))
+
+;; ----------------------------------------------------
+
 (define (table-cut df ks)
   (struct-copy table
                df
@@ -188,7 +199,7 @@ All rights reserved.
 
 ;; ----------------------------------------------------
 
-(define (table-sort df k less-than?)
+(define (table-sort df k [less-than? less-than?])
   (let ([col (table-column df k)])
     (struct-copy table
                  df
@@ -200,16 +211,19 @@ All rights reserved.
 (define (table-distinct df k [keep 'first])
   (let ([h (make-hash)])
     (for ([i (table-index df)]
+          [n (in-naturals)]
           [x (table-column df k)] #:when x)
       (case keep
-        [(first) (hash-ref! h x i)]
-        [(last)  (hash-set! h x i)]
+        [(first) (hash-ref! h x (cons n i))]
+        [(last)  (hash-set! h x (cons n i))]
         [(none)  (hash-set! h x (if (hash-has-key? h x) #f i))]))
 
     ; build the new table index
     (struct-copy table
                  df
-                 [index (for/vector ([(_ i) h] #:when i) i)])))
+                 [index (let ([indices (sort (remq* '(#f) (hash-values h)) < #:key car)])
+                          (for/vector ([i indices])
+                            (cdr i)))])))
 
 ;; ----------------------------------------------------
 
@@ -254,12 +268,12 @@ All rights reserved.
   ; check mapping, filtering, etc.
   (check-equal? (sequence->list (table-map age-filter df '(age))) '(#f #f #t #t #f))
   (check-equal? (table-index (table-filter age-filter df '(age))) #(2 3))
-  (check-equal? (table-index (table-sort df 'age <)) #(2 3 4 1 0))
+  (check-equal? (table-index (table-sort df 'age)) #(2 3 4 1 0))
   (check-equal? (table-index (table-reverse df)) #(4 3 2 1 0))
 
   ; distinct column values
   (check-equal? (table-index (table-distinct df 'gender 'first)) #(0 1))
-  (check-equal? (table-index (table-distinct df 'gender 'last)) #(4 2))
+  (check-equal? (table-index (table-distinct df 'gender 'last)) #(2 4))
   (check-equal? (table-index (table-distinct df 'gender 'none)) #())
 
   ; check reindexing

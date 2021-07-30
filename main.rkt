@@ -60,6 +60,7 @@ All rights reserved.
  table-column-names
  table-column
  table-with-column
+ table-with-columns-renamed
  table-cut
  table-drop
  table-row
@@ -90,19 +91,19 @@ All rights reserved.
  table-write/csv
  table-write/json
  table-write/string)
-
+#|
 (module+ test
   (require rackunit)
 
   ; load a simple table of books
-  (define df (table-read/csv "test/books.csv"))
+  (define df (call-with-input-file "test/books.csv" table-read/csv))
 
   ; ensure that the table loaded the correct size of data
   (check-equal? (call-with-values (λ () (table-shape df)) list) '(211 5))
   (check-equal? (table-column-names df) '(Title Author Genre Height Publisher))
 
   ; record streaming
-  (let* ([record (stream-first (table->record-stream df #:keep-index? #f))]
+  (let* ([record (stream-first (table-records df #:keep-index? #f))]
 
          ; create a list of the record keys
          [header (hash-keys record)])
@@ -139,3 +140,4 @@ All rights reserved.
   (let* ([top (table-distinct df 'Publisher)]
          [w/sales (table-join top pubs '(Publisher) string<? 'right)])
     (check-true (column-equal? (table-column w/sales 'Sales) '(0 20000 12000 10000)))))
+|#

@@ -9,6 +9,7 @@ All rights reserved.
 
 |#
 
+(require "compare.rkt")
 (require "index.rkt")
 (require "table.rkt")
 (require "read.rkt")
@@ -20,150 +21,93 @@ All rights reserved.
 
 ;; ----------------------------------------------------
 
-(define (join-columns left right l-suffix r-suffix [drop-columns '(#f)])
-  (let ([right (remq* drop-columns right)])
-    (values (for/list ([k left])
-              (list k (if (not (memq k right))
-                          k
-                          (string->symbol (format "~a~a" k l-suffix)))))
-            (for/list ([k right])
-              (list k (if (not (memq k left))
-                          k
-                          (string->symbol (format "~a~a" k r-suffix))))))))
+(define (table-remapped df other suffix on drop?)
+  (let* ([other-columns (table-column-names other)]
 
-;; ----------------------------------------------------
-
-(define (join-indexes left right less-than? on [with on])
-  (values (table-index left on less-than?)
-          (table-index right with less-than?)))
+         ; columns existing in other need to be renamed
+         [rename-map (for/hash ([k (table-column-names df)]
+                                #:when (and (not (equal? k on))
+                                            (member k other-columns)))
+                       (values k (string->symbol (format "~a~a" k suffix))))])
+    (table-with-columns-renamed (if drop? (table-drop df (list on)) df) rename-map)))
 
 ;; ----------------------------------------------------
 
 (define (table-join df
                     other
                     on
-                    less-than?
-                    [how 'inner]
-                    #:left-columns [left-columns (table-column-names df)]
-                    #:right-columns [right-columns (table-column-names other)]
+                    [less-than? less-than?]
+                    #:with [with on]
+                    #:how [how 'inner]
                     #:left-suffix [l-suffix "-x"]
                     #:right-suffix [r-suffix "-y"])
-  (let-values ([(left-index right-index)
-                (apply join-indexes df other less-than? on)])
+  (let* ([left (table-remapped df other l-suffix on #f)]
+         [right (table-remapped other df r-suffix with (eq? on with))]
 
-    ; determine the join function to call
-    (let ([join (case how
-                  ((inner) inner-join)
-                  ((left) left-join)
-                  ((right) right-join)
-                  ((outer) outer-join)
-                  (else (error "Unknown join type:" how)))])
+         ; build the index for the right table
+         [ix (build-index (table-column other with) less-than?)]
 
-      ; get the columns of the left and right, renamed + dropped
-      (let-values ([(l r) (join-columns left-columns
-                                        right-columns
-                                        l-suffix
-                                        r-suffix
-                                        (case how
-                                          ((inner left) on)
-                                          ((right outer) null)))])
+         ; pick the join operation to perform
+         [join (case how
+                 ((inner) inner-join)
+                 ((left) left-join)
+                 ((right) 1);right-join)
+                 ((outer) 1);outer-join)
+                 (else (error "Unknown join type:" how)))]
 
-        ; build the new left/right tables to join (with proper columns)
-        (let* ([left (table-cut df l)]
-               [right (table-cut other r)]
+         ; create the table builder
+         [builder (new table-builder%
+                       [initial-size (table-length df)]
+                       [columns (append (table-column-names left)
+                                        (table-column-names right))])])
 
-               ; create a new table-builder% for the join function
-               [builder (new table-builder%
-                             [initial-size (table-length df)]
-                             [columns (append (table-column-names left)
-                                              (table-column-names right))])])
-          (join builder left right left-index right-index)
-
-          ; build the table and return it
-          (send builder build))))))
+    ; execute the join and build the final result table
+    (join builder left right on ix)
+    (send builder build)))
 
 ;; ----------------------------------------------------
 
-(define (join l-ix r-ix on-equal on-less on-else)
-  (let ([less-than? (secondary-index-less-than? l-ix)])
-    (letrec ([join (λ (li ri)
-                     (let ([x (and (< li (secondary-index-length l-ix))
-                                   (vector-ref (secondary-index-keys l-ix) li))]
-                           [y (and (< ri (secondary-index-length r-ix))
-                                   (vector-ref (secondary-index-keys r-ix) ri))])
-                       (cond
-                         [(and x y (equal? (car x) (car y)))
-                          (when on-equal
-                            (on-equal (cdr x) (cdr y)))
-                          (join (add1 li) (add1 ri))]
-
-                         ; left < right?
-                         [(and x (or (not y) (less-than? (car x) (car y))))
-                          (when on-less
-                            (on-less (cdr x)))
-                          (join (add1 li) ri)]
-
-                         ; right < left?
-                         [(and y (or (not x) (less-than? (car y) (car x))))
-                          (when on-else
-                            (on-else (cdr y)))
-                          (join li (add1 ri))])))])
-      (join 0 0))))
+(define (inner-join builder left right on ix)
+  (for ([row (table-cut left (list on))])
+    (match row
+      [(list il x)
+       (when x
+         (let ([indices (index-scan ix #:from x #:to x)])
+           (unless (stream-empty? indices)
+             (let ([left-row (cdr (table-row left il))])
+               (for ([ir indices])
+                 (let ([right-row (cdr (table-row right ir))])
+                   (send builder add-row (append left-row right-row))))))))])))
 
 ;; ----------------------------------------------------
 
-(define (row-merger builder left right)
-  (λ (xs ys)
-    (for* ([xi xs] [yi ys])
-      (send builder
-            add-row
-            (append (table-row left xi #:keep-index? #f)
-                    (table-row right yi #:keep-index? #f))))))
+(define (left-join builder left right on ix)
+  (let ([empty-right (map (const #f) (table-column-names right))])
+    (for ([row (table-cut left (list on))])
+      (match row
+        [(list il x)
+         (let ([left-row (cdr (table-row left il))]
+               [indices (and x (index-scan ix #:from x #:to x))])
+           (if (or (not indices) (stream-empty? indices))
+               (send builder add-row (append left-row empty-right))
+               (for ([ir indices])
+                 (let ([right-row (cdr (table-row right ir))])
+                   (send builder add-row (append left-row right-row))))))]))))
 
 ;; ----------------------------------------------------
 
-(define (inner-join builder left right l-ix r-ix)
-  (join l-ix r-ix (row-merger builder left right) #f #f))
+(module+ test
+  (require rackunit)
+  (require "read.rkt")
+  (require "write.rkt")
 
-;; ----------------------------------------------------
+  ; load a table of data
+  (define books (call-with-input-file "test/books.csv" table-read/csv))
 
-(define (left-join builder left right l-ix r-ix)
-  (let* ([empty-row (map (const #f) (table-column-names right))]
-         [on-less (λ (xs)
-                    (for ([xi xs])
-                      (send builder
-                            add-row
-                            (append (table-row left xi #:keep-index? #f) empty-row))))])
-    (join l-ix r-ix (row-merger builder left right) on-less #f)))
+  ; make another table to join with
+  (define pubs (table #(0 1 2 3)
+                      '((Publisher . #("Penguin" "Wiley" "Random House" "FOOBAR")))))
 
-;; ----------------------------------------------------
-
-(define (right-join builder left right l-ix r-ix)
-  (let* ([empty-row (map (const #f) (table-column-names left))]
-         [on-else (λ (xs)
-                    (for ([xi xs])
-                      (send builder
-                            add-row
-                            (append empty-row (table-row right xi #:keep-index? #f)))))])
-    (join l-ix r-ix (row-merger builder left right) #f on-else)))
-
-;; ----------------------------------------------------
-
-(define (outer-join builder left right l-ix r-ix)
-  (let* ([left-empty (map (const #f) (table-column-names left))]
-         [right-empty (map (const #f) (table-column-names right))]
-
-         ; take all lefts that don't match
-         [on-less (λ (xs)
-                    (for ([xi xs])
-                      (send builder
-                            add-row
-                            (append (table-row left xi #:keep-index? #f) right-empty))))]
-
-         ; take all rights that don't match
-         [on-else (λ (xs)
-                    (for ([xi xs])
-                      (send builder
-                            add-row
-                            (append left-empty (table-row right xi #:keep-index? #f)))))])
-    (join l-ix r-ix (row-merger builder left right) on-less on-else)))
+  ; perform a join
+  (table-write/string (table-join pubs books 'Publisher #:how 'left))
+  )

@@ -9,6 +9,7 @@ All rights reserved.
 
 |#
 
+(require "compare.rkt")
 (require "utils.rkt")
 
 ;; ----------------------------------------------------
@@ -106,7 +107,7 @@ All rights reserved.
 
 ;; ----------------------------------------------------
 
-(define (column-sort col less-than?)
+(define (column-sort col [less-than? less-than?])
   (let ([ix (column-index col)]
         [data (column-data col)])
     (struct-copy column
@@ -155,4 +156,7 @@ All rights reserved.
   ; mapping, filtering, etc.
   (check-equal? (sequence->list (sequence-map add1 c)) '(1 2 3 4 5))
   (check-equal? (sequence->list (sequence-filter even? c)) '(0 2 4))
-  (check-equal? (sequence-fold + 0 c) 10))
+  (check-equal? (sequence-fold + 0 c) 10)
+
+  ; sorting
+  (check-equal? (sequence->list (column-sort c)) '(0 1 2 3 4)))

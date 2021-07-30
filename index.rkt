@@ -13,6 +13,10 @@ All rights reserved.
 
 ;; ----------------------------------------------------
 
+(require "compare.rkt")
+
+;; ----------------------------------------------------
+
 (provide (all-defined-out)
          (except-out (struct-out index-stream)))
 
@@ -26,9 +30,7 @@ All rights reserved.
   #:methods gen:custom-write
   [(define write-proc
      (λ (ix port mode)
-       (fprintf port "#<index ~a [~a keys]>"
-                (index-less-than? ix)
-                (index-length ix))))])
+       (fprintf port "#<index [~a keys]>" (index-length ix))))])
 
 ;; ----------------------------------------------------
 
@@ -48,13 +50,18 @@ All rights reserved.
   (let* ([n (index-length ix)]
          [keys (index-keys ix)]
 
+         ; should the key lookup be exact?
+         [exact? (and to from (equal? to from))]
+
          ; key range indices of the scan
-         [start (if from (index-find ix from #f) 0)]
-         [end (if to (index-find ix to #f) n)]
+         [start (if from (index-find ix from exact?) 0)]
+         [end (or (and exact? start)
+                  (if to (index-find ix to #f) n))]
 
          ; the final range
          [key-range (cond
-                      [(>= start n) empty-sequence]
+                      [(or (not start) (>= start n))
+                       empty-sequence]
 
                       ; only the start key is scanned
                       [(= start end)
@@ -78,7 +85,7 @@ All rights reserved.
 
 ;; ----------------------------------------------------
 
-(define (build-index seq less-than?)
+(define (build-index seq [less-than? less-than?])
   (let ([h (make-hash)])
     (for ([(x i) (in-indexed seq)] #:when x)
       (hash-update! h x (λ (ix) (cons i ix)) '()))
@@ -190,7 +197,7 @@ All rights reserved.
   ; build a simple sequence of integers and index them
   (define xs #(6 3 6 0 4 1 0 9 9 9 4 9 7 1 9 3 5 4 5 8 8 5 3 1 4 5 6 8 0 6))
   (define sorted (vector-sort xs <))
-  (define ix (build-index xs <))
+  (define ix (build-index xs))
 
   ; ensure the order and integrity of the index
   (check-equal? (sequence->list (sequence-map (λ (i) (vector-ref xs i)) ix))
@@ -212,4 +219,5 @@ All rights reserved.
   (check-equal? (sequence->list (index-map ix xs #:to 4)) '(0 0 0 1 1 1 3 3 3))
   (check-equal? (sequence->list (index-map ix xs #:from 6)) '(6 6 6 6 7 8 8 8 9 9 9 9 9))
   (check-equal? (sequence->list (index-map ix xs #:from 2 #:to 6)) '(3 3 3 4 4 4 4 5 5 5 5))
-  (check-equal? (sequence->list (index-map ix xs #:from 5 #:to 5)) '(5 5 5 5)))
+  (check-equal? (sequence->list (index-map ix xs #:from 5 #:to 5)) '(5 5 5 5))
+  (check-equal? (sequence->list (index-map ix xs #:from 2 #:to 2)) '()))
