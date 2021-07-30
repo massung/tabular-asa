@@ -71,7 +71,7 @@ All rights reserved.
 
 ;; ----------------------------------------------------
 
-(define (table-join/left df other on [less-than? less-than?] #:with [with on])
+(define (table-join/outer df other on [less-than? less-than?] #:with [with on])
   (let ([left (table-remapped df other "-x" on #f)]
         [right (table-remapped other df "-y" with (eq? on with))]
         [ix (build-index (table-column other with) less-than?)])
@@ -83,11 +83,6 @@ All rights reserved.
                 (let ([empty (map (const #f) (table-column-names right))])
                   (λ (left-row)
                     (append left-row empty))))))
-
-;; ----------------------------------------------------
-
-(define (table-join/right df other on [less-than? less-than?] #:with [with on])
-  (table-join/left other df on less-than? #:with with))
 
 ;; ----------------------------------------------------
 
@@ -112,15 +107,12 @@ All rights reserved.
       (send builder add-row '("Mary" vp))
       (send builder build)))
 
-  ; join inner, left, and right
+  ; join inner and outer
   (define inner (table-join/inner people jobs 'name))
-  (define left (table-join/left people jobs 'name))
-  (define right (table-join/right people jobs 'name))
+  (define outer (table-join/outer people jobs 'name))
   
   ; verify join results
   (check-equal? (sequence->list (table-column inner 'title))
                 '(janitor programmer manager))
-  (check-equal? (sequence->list (table-column left 'title))
-                '(janitor programmer #f manager))
-  (check-equal? (sequence->list (table-column right 'name))
-                '("Jeff" "Sally" "Dave" "Mary")))
+  (check-equal? (sequence->list (table-column outer 'title))
+                '(janitor programmer #f manager)))

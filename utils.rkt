@@ -17,12 +17,12 @@ All rights reserved.
 
 ;; ----------------------------------------------------
 
-(define (stream-zip xs)
+(define (sequence-zip xs)
   (match xs
     [(list x)
      (for/stream ([e x]) (list e))]
     [(list x xs ...)
-     (for/stream ([e x] [e* (stream-zip xs)])
+     (for/stream ([e x] [e* (sequence-zip xs)])
        (cons e e*))]))
 
 ;; ----------------------------------------------------

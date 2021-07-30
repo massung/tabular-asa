@@ -80,8 +80,7 @@ All rights reserved.
 
  ; join
  table-join/inner
- table-join/left
- table-join/right
+ table-join/outer
 
  ; read
  table-builder%

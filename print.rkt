@@ -9,40 +9,50 @@ All rights reserved.
 
 |#
 
-(require "column.rkt")
-(require "read.rkt")
-(require "table.rkt")
+(require racket/pretty)
 
 ;; ----------------------------------------------------
 
-(provide table-print-size
+(require "column.rkt")
+(require "read.rkt")
+(require "table.rkt")
+(require "utils.rkt")
+
+;; ----------------------------------------------------
+
+(provide pretty-print-rows
          print-table
          display-table
          write-table)
 
 ;; ----------------------------------------------------
 
-(define table-print-size (make-parameter 10))
+(define pretty-print-rows (make-parameter 10))
 
 ;; ----------------------------------------------------
 
-(define (column-preview df k [n (table-print-size)])
+(define (column-preview df k [n (pretty-print-rows)])
   (if (or (not n) (<= (table-length df) n))
-      (sequence->stream (table-column df k))
+      (table-column df k)
       (let ([n (quotient n 2)])
-        (stream-append (sequence->stream (table-column (table-head df n) k))
-                       (stream "...")
-                       (sequence->stream (table-column (table-tail df n) k))))))
+        (sequence-append (table-column (table-head df n) k)
+                         (list "...")
+                         (table-column (table-tail df n) k)))))
 
 ;; ----------------------------------------------------
 
-(define (index-preview df [n (table-print-size)])
+(define (index-preview df [n (pretty-print-rows)])
   (if (or (not n) (<= (table-length df) n))
-      (sequence->stream (table-index df))
+      (table-index df)
       (let ([n (quotient n 2)])
-        (stream-append (sequence->stream (table-index (table-head df n)))
-                       (stream "..")
-                       (sequence->stream (table-index (table-tail df n)))))))
+        (sequence-append (table-index (table-head df n))
+                         (list "..")
+                         (table-index (table-tail df n))))))
+
+;; ----------------------------------------------------
+
+(define (column-gap-preview [n (pretty-print-rows)])
+  (sequence-map (const "...") (in-range n)))
 
 ;; ----------------------------------------------------
 
@@ -85,17 +95,10 @@ All rights reserved.
     (row-format "" (table-column-names df))
 
     ; write all the column previews
-    (letrec ([zip-columns (λ (xs)
-                            (match xs
-                              [(list x)
-                               (for/stream ([e x]) (list e))]
-                              [(list x xs ...)
-                               (for/stream ([e x] [e* (zip-columns xs)])
-                                 (cons e e*))]))])
-      (for ([i (index-preview df)]
-            [row (zip-columns (for/list ([k (table-column-names df)])
-                                (column-preview df k)))])
-        (row-format i row)))))
+    (for ([i (index-preview df)]
+          [row (sequence-zip (for/list ([k (table-column-names df)])
+                               (column-preview df k)))])
+      (row-format i row))))
 
 ;; ----------------------------------------------------
 

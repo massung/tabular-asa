@@ -28,7 +28,7 @@ All rights reserved.
 (define (table-write/string df
                             [port (current-output-port)]
                             #:keep-index? [keep-index #t])
-  (parameterize ([table-print-size #f])
+  (parameterize ([pretty-print-rows #f])
     (display-table df port #:keep-index? keep-index)))
 
 ;; ----------------------------------------------------
