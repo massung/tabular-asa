@@ -134,41 +134,44 @@ All rights reserved.
 
 ;; ----------------------------------------------------
 
-(define (table-read/json port #:lines? [lines #f])
+(define (table-read/jsexpr jsexpr)
   (let ([builder (new table-builder%)])
-    (if lines
-
-        ; read each line as a single record
-        (do ([r (read-json port)
-                (read-json port)])
-          [(eof-object? r)]
-          (send builder add-record r))
-
-        ; read the entire json first
-        (let ([x (read-json port)])
-          (match x
+    (match jsexpr
             
-            ; column-oriented object -- {"col": [x1, x2, ...], ...}
-            [(hash-table (ks (list xs ...)) ...)
-             (letrec ([keys (hash-keys x)]
+      ; column-oriented object -- {"col": [x1, x2, ...], ...}
+      [(hash-table (ks (list xs ...)) ...)
+       (letrec ([keys (hash-keys jsexpr)]
 
-                      ; recursively add the rows together
-                      [add-rows (λ (cols)
-                                  (unless (empty? (first cols))
-                                    (send builder add-row (map first cols) keys)
-                                    (add-rows (map rest cols))))])
-               (add-rows (hash-values x)))]
+                ; recursively add the rows together
+                [add-rows (λ (cols)
+                            (unless (empty? (first cols))
+                              (send builder add-row (map first cols) keys)
+                              (add-rows (map rest cols))))])
+         (add-rows (hash-values jsexpr)))]
 
-            ; row-oriented list -- [{"col1": x, "col2": y, ...}, ...]
-            [(list records ...)
-             (for ([r records])
-               (send builder add-record r))]
+      ; row-oriented list -- [{"col1": x, "col2": y, ...}, ...]
+      [(list records ...)
+       (for ([r records])
+         (send builder add-record r))]
                 
-            ; unknown json orientation
-            [else #f])))
+      ; unknown json orientation
+      [else #f])
 
     ; construct the table
     (send builder build)))
+
+;; ----------------------------------------------------
+
+(define (table-read/json port #:lines? [lines #f])
+  (if lines
+      (let ([builder (new table-builder%)])
+        (do ([r (read-json port)
+                (read-json port)])
+          [(eof-object? r) (send builder build)]
+          (send builder add-record r)))
+
+      ; read the entire json first
+      (table-read/jsexpr (read-json port))))
 
 ;; ----------------------------------------------------
 

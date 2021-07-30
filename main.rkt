@@ -88,6 +88,7 @@ All rights reserved.
  table-builder%
  table-read/csv
  table-read/json
+ table-read/jsexpr
 
  ; for
  for/table
