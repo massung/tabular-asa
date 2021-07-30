@@ -182,15 +182,22 @@ All rights reserved.
 
 ;; ----------------------------------------------------
 
-(define (table-map proc df [ks #f] #:keep-index? [keep-index (not ks)])
+(define (table-for-each proc df [ks #f])
+  (sequence-for-each (λ (row)
+                       (apply proc row))
+                     (if ks (table-cut df ks) df)))
+  
+;; ----------------------------------------------------
+
+(define (table-map proc df [ks #f])
   (sequence-map (λ (row)
-                  (apply proc (if keep-index row (cdr row))))
+                  (apply proc row))
                 (if ks (table-cut df ks) df)))
 
 ;; ----------------------------------------------------
 
-(define (table-filter proc df [ks #f] #:keep-index? [keep-index (not ks)])
-  (table-select df (table-map proc df ks #:keep-index? keep-index)))
+(define (table-filter proc df [ks #f])
+  (table-select df (table-map proc df ks)))
 
 ;; ----------------------------------------------------
 
@@ -262,7 +269,7 @@ All rights reserved.
   (check-equal? (sequence->list (table-column (table-head df 2) 'name)) '("Jeff" "Jennie"))
   (check-equal? (sequence->list (table-column (table-tail df 2) 'name)) '("Dave" "Bob"))
 
-  (define (age-filter age)
+  (define (age-filter i age)
     (< age 30))
 
   ; check mapping, filtering, etc.

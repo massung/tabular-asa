@@ -143,6 +143,12 @@ All rights reserved.
 
 ;; ----------------------------------------------------
 
+(define (index-member ix key)
+  (let ([i (index-find ix key)])
+    (and i (index-ref ix i))))
+
+;; ----------------------------------------------------
+
 (define (index-ref ix n)
   (vector-ref (index-keys ix) n))
 

@@ -29,6 +29,7 @@ All rights reserved.
  index-length
  index-empty?
  index-find
+ index-member
  index-ref
  index-map
  index-min
@@ -69,13 +70,18 @@ All rights reserved.
  table-head
  table-tail
  table-select
+ table-for-each
  table-map
  table-filter
  table-drop-na
  table-sort
  table-distinct
  table-reverse
- table-join
+
+ ; join
+ table-join/inner
+ table-join/left
+ table-join/right
 
  ; read
  table-builder%

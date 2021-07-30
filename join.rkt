@@ -13,11 +13,12 @@ All rights reserved.
 (require "index.rkt")
 (require "table.rkt")
 (require "read.rkt")
-(require "print.rkt")
 
 ;; ----------------------------------------------------
 
-(provide table-join)
+(provide (all-defined-out)
+         (except-out table-remapped)
+         (except-out table-join))
 
 ;; ----------------------------------------------------
 
@@ -33,81 +34,93 @@ All rights reserved.
 
 ;; ----------------------------------------------------
 
-(define (table-join df
-                    other
-                    on
-                    [less-than? less-than?]
-                    #:with [with on]
-                    #:how [how 'inner]
-                    #:left-suffix [l-suffix "-x"]
-                    #:right-suffix [r-suffix "-y"])
-  (let* ([left (table-remapped df other l-suffix on #f)]
-         [right (table-remapped other df r-suffix with (eq? on with))]
+(define (table-join left right on ix merge [else #f])
+  (let ([builder (new table-builder%
+                      [initial-size (table-length left)]
+                      [columns (append (table-column-names left)
+                                       (table-column-names right))])])
 
-         ; build the index for the right table
-         [ix (build-index (table-column other with) less-than?)]
+    ; iterate over left table, join with right
+    (for ([row (table-cut left (list on))])
+      (match row
+        [(list i x)
+         (let ([ks (index-member ix x)])
+           (if ks
+               (let ([left-row (cdr (table-row left i))])
+                 (for ([j (cdr ks)])
+                   (let ([right-row (cdr (table-row right j))])
+                     (send builder add-row (merge left-row right-row)))))
+               (when else
+                 (let ([row (else (cdr (table-row left i)))])
+                   (send builder add-row row)))))]))
 
-         ; pick the join operation to perform
-         [join (case how
-                 ((inner) inner-join)
-                 ((left) left-join)
-                 ((right) 1);right-join)
-                 ((outer) 1);outer-join)
-                 (else (error "Unknown join type:" how)))]
-
-         ; create the table builder
-         [builder (new table-builder%
-                       [initial-size (table-length df)]
-                       [columns (append (table-column-names left)
-                                        (table-column-names right))])])
-
-    ; execute the join and build the final result table
-    (join builder left right on ix)
+    ; build the table
     (send builder build)))
 
 ;; ----------------------------------------------------
 
-(define (inner-join builder left right on ix)
-  (for ([row (table-cut left (list on))])
-    (match row
-      [(list il x)
-       (when x
-         (let ([indices (index-scan ix #:from x #:to x)])
-           (unless (stream-empty? indices)
-             (let ([left-row (cdr (table-row left il))])
-               (for ([ir indices])
-                 (let ([right-row (cdr (table-row right ir))])
-                   (send builder add-row (append left-row right-row))))))))])))
+(define (table-join/inner df other on [less-than? less-than?] #:with [with on])
+  (let ([left (table-remapped df other "-x" on #f)]
+        [right (table-remapped other df "-y" with (eq? on with))]
+        [ix (build-index (table-column other with) less-than?)])
+    (table-join left
+                right
+                on
+                ix
+                append)))
 
 ;; ----------------------------------------------------
 
-(define (left-join builder left right on ix)
-  (let ([empty-right (map (const #f) (table-column-names right))])
-    (for ([row (table-cut left (list on))])
-      (match row
-        [(list il x)
-         (let ([left-row (cdr (table-row left il))]
-               [indices (and x (index-scan ix #:from x #:to x))])
-           (if (or (not indices) (stream-empty? indices))
-               (send builder add-row (append left-row empty-right))
-               (for ([ir indices])
-                 (let ([right-row (cdr (table-row right ir))])
-                   (send builder add-row (append left-row right-row))))))]))))
+(define (table-join/left df other on [less-than? less-than?] #:with [with on])
+  (let ([left (table-remapped df other "-x" on #f)]
+        [right (table-remapped other df "-y" with (eq? on with))]
+        [ix (build-index (table-column other with) less-than?)])
+    (table-join left
+                right
+                on
+                ix
+                append
+                (let ([empty (map (const #f) (table-column-names right))])
+                  (λ (left-row)
+                    (append left-row empty))))))
+
+;; ----------------------------------------------------
+
+(define (table-join/right df other on [less-than? less-than?] #:with [with on])
+  (table-join/left other df on less-than? #:with with))
 
 ;; ----------------------------------------------------
 
 (module+ test
   (require rackunit)
-  (require "read.rkt")
-  (require "write.rkt")
 
-  ; load a table of data
-  (define books (call-with-input-file "test/books.csv" table-read/csv))
+  ; create a simple table
+  (define people
+    (let ([builder (new table-builder% [columns '(name age gender)])])
+      (send builder add-row '("Jeff" 32 m))
+      (send builder add-row '("Dave" 26 m))
+      (send builder add-row '("Henry" 18 m))
+      (send builder add-row '("Sally" 37 f))
+      (send builder build)))
+  
+  ; create another table to join with
+  (define jobs
+    (let ([builder (new table-builder% [columns '(name title)])])
+      (send builder add-row '("Jeff" janitor))
+      (send builder add-row '("Sally" manager))
+      (send builder add-row '("Dave" programmer))
+      (send builder add-row '("Mary" vp))
+      (send builder build)))
 
-  ; make another table to join with
-  (define pubs (table #(0 1 2 3)
-                      '((Publisher . #("Penguin" "Wiley" "Random House" "FOOBAR")))))
-
-  ; perform a join
-  (table-write/string (table-join pubs books 'Publisher #:how 'left))
-  )
+  ; join inner, left, and right
+  (define inner (table-join/inner people jobs 'name))
+  (define left (table-join/left people jobs 'name))
+  (define right (table-join/right people jobs 'name))
+  
+  ; verify join results
+  (check-equal? (sequence->list (table-column inner 'title))
+                '(janitor programmer manager))
+  (check-equal? (sequence->list (table-column left 'title))
+                '(janitor programmer #f manager))
+  (check-equal? (sequence->list (table-column right 'name))
+                '("Jeff" "Sally" "Dave" "Mary")))
