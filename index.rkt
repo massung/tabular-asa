@@ -24,7 +24,7 @@ All rights reserved.
 
 (struct index [keys less-than?]
   #:property prop:sequence
-  (λ (ix) (index-scan ix))
+  (λ (ix) (index-scan-keys ix))
 
   ; custom printing
   #:methods gen:custom-write
@@ -46,7 +46,7 @@ All rights reserved.
 
 ;; ----------------------------------------------------
 
-(define (index-scan ix #:from [from #f] #:to [to #f])
+(define (index-scan-keys ix #:from [from #f] #:to [to #f])
   (let* ([n (index-length ix)]
          [keys (index-keys ix)]
 
@@ -56,31 +56,34 @@ All rights reserved.
          ; key range indices of the scan
          [start (if from (index-find ix from exact?) 0)]
          [end (or (and exact? start)
-                  (if to (index-find ix to #f) n))]
+                  (if to (index-find ix to #f) n))])
 
-         ; the final range
-         [key-range (cond
-                      [(or (not start) (>= start n))
-                       empty-sequence]
+    ; returns the key and the indices
+    (sequence-map (λ (i)
+                    (let ([key (vector-ref keys i)])
+                      (values (car key) (cdr key))))
+                  (cond
+                      [(or (not start) (>= start n)) empty-sequence]
 
                       ; only the start key is scanned
                       [(= start end)
                        (in-range start (add1 start))]
 
                       ; exclusive to
-                      [else
-                       (in-range start end)])]
+                      [else (in-range start end)]))))
 
-         ; build a generator for iteration
-         [g (generator ()
-              (for ([k key-range])
-                (let ([indices (cdr (vector-ref keys k))])
-                  (for ([i indices])
-                    (yield i))))
+;; ----------------------------------------------------
 
+(define (index-scan ix #:from [from #f] #:to [to #f])
+  (let ([g (let [(seq (index-scan-keys ix #:from from #:to to))]
+             (generator ()
+               (for ([(k indices) seq])
+                 (for ([i indices])
+                   (yield i)))
+               
               ; end of key range...
               (for ([i (in-cycle '(#f))])
-                (yield i)))])
+                (yield i))))])
     (index-stream g (g))))
 
 ;; ----------------------------------------------------
@@ -206,7 +209,9 @@ All rights reserved.
   (define ix (build-index xs))
 
   ; ensure the order and integrity of the index
-  (check-equal? (sequence->list (sequence-map (λ (i) (vector-ref xs i)) ix))
+  (check-equal? (for/list ([(k _) ix]) k) '(0 1 3 4 5 6 7 8 9))
+  (check-equal? (sequence->list (sequence-map (λ (i) (vector-ref xs i))
+                                              (index-scan ix)))
                 (vector->list sorted))
 
   ; check min, max, median, and mode

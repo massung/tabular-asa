@@ -13,6 +13,7 @@ All rights reserved.
 (require "index.rkt")
 (require "table.rkt")
 (require "read.rkt")
+(require "for.rkt")
 (require "join.rkt")
 (require "print.rkt")
 (require "write.rkt")
@@ -20,22 +21,6 @@ All rights reserved.
 ;; ----------------------------------------------------
 
 (provide
-
- ; index
- (struct-out index)
- build-index
- empty-index
- index-scan
- index-length
- index-empty?
- index-find
- index-member
- index-ref
- index-map
- index-min
- index-max
- index-median
- index-mode
 
  ; column
  (struct-out column)
@@ -49,6 +34,23 @@ All rights reserved.
  column-tail
  column-reverse
  column-sort
+
+ ; index
+ (struct-out index)
+ build-index
+ empty-index
+ index-scan-keys
+ index-scan
+ index-length
+ index-empty?
+ index-find
+ index-member
+ index-ref
+ index-map
+ index-min
+ index-max
+ index-median
+ index-mode
 
  ; table
  (struct-out table)
@@ -86,6 +88,9 @@ All rights reserved.
  table-builder%
  table-read/csv
  table-read/json
+
+ ; for
+ for/table
 
  ; print
  display-table

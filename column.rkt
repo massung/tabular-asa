@@ -10,6 +10,7 @@ All rights reserved.
 |#
 
 (require "compare.rkt")
+(require "index.rkt")
 (require "utils.rkt")
 
 ;; ----------------------------------------------------
