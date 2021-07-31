@@ -7,30 +7,14 @@
 
 (define books (call-with-input-file "books.csv" table-read/csv))
 
-;; Keep only the short, fiction books...
+;; Find the longest book written by each author...
 
-(define short-books (let ([pred (λ (index height genre)
-                                  (and (< height 200)
-                                       (string-ci=? genre "fiction")))])
-                      (table-filter pred books '(Height Genre))))
+(let* ([df (table-sort (table-drop-na books '(Author)) 'Height >)]
+       [df (table-distinct df 'Author)])
+  (display-table (table-cut df '(Author Title Height)) #:keep-index? #f))
 
-;; Sort them by title...
+;; Find the most prolific publisher...
 
-(define sorted (table-sort short-books 'Title))
-
-;; Take the top 20...
-
-(define top (table-head sorted 20))
-
-;; Index the results by publisher...
-
-(define ix (build-index (table-column top 'Publisher)))
-
-;; Determine which publisher has the most top books
-
-(displayln (for/fold ([pub #f] [n 0] #:result pub)
-                     ([(publisher indices) ix])
-             (let ([m (length indices)])
-               (if (> m n)
-                   (values publisher m)
-                   (values pub n)))))
+(let* ([ix (build-index (table-column books 'Publisher))]
+       [df (table-read/sequence (index-count ix) '(Publisher N))])
+  (display-table (table-head (table-sort df 'N >) 1)))

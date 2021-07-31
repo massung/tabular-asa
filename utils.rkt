@@ -19,6 +19,8 @@ All rights reserved.
 
 (define (sequence-zip xs)
   (match xs
+    [(list)
+     '()]
     [(list x)
      (for/stream ([e x]) (list e))]
     [(list x xs ...)

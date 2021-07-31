@@ -87,6 +87,14 @@ All rights reserved.
 
 ;; ----------------------------------------------------
 
+(define (table-read/sequence seq columns)
+  (let ([builder (new table-builder% [columns columns])])
+    (for ([row seq])
+      (send builder add-row row))
+    (send builder build)))
+
+;; ----------------------------------------------------
+
 (define (table-read/csv port
                         #:header? [header #t]
                         #:separator-char [sep #\,]
@@ -112,7 +120,7 @@ All rights reserved.
          [first-row (next-row)]
 
          ; create a list of column names/indices
-         [column-names (if header first-row (range (length first-row)))]
+         [columns (if header first-row (range (length first-row)))]
 
          ; parse cells, look for n/a as well
          [parse-row (λ (r)
@@ -121,16 +129,10 @@ All rights reserved.
                           (cond
                             [n n]
                             [(member x na-values string-ci=?) na]
-                            [else x]))))]
+                            [else x]))))])
 
-         ; initialize a new table builder
-         [builder (new table-builder% [columns column-names])])
-
-    ; add all the rows to the table
-    (csv-for-each (λ (r) (send builder add-row (parse-row r))) next-row)
-
-    ; return the table
-    (send builder build)))
+    ; 
+    (table-read/sequence (csv-map parse-row next-row) columns)))
 
 ;; ----------------------------------------------------
 

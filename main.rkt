@@ -11,6 +11,7 @@ All rights reserved.
 
 (require "column.rkt")
 (require "index.rkt")
+(require "agg.rkt")
 (require "table.rkt")
 (require "read.rkt")
 (require "for.rkt")
@@ -52,6 +53,9 @@ All rights reserved.
  index-median
  index-mode
 
+ ; agg
+ index-count
+
  ; table
  (struct-out table)
  empty-table
@@ -86,6 +90,7 @@ All rights reserved.
 
  ; read
  table-builder%
+ table-read/sequence
  table-read/csv
  table-read/json
  table-read/jsexpr

@@ -201,8 +201,8 @@ All rights reserved.
 
 ;; ----------------------------------------------------
 
-(define (table-drop-na df)
-  (table-select df (sequence-map all? df)))
+(define (table-drop-na df [ks #f])
+  (table-select df (sequence-map all? (if ks (table-cut df ks) df))))
 
 ;; ----------------------------------------------------
 
