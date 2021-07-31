@@ -78,10 +78,10 @@ All rights reserved.
 
 ;; ----------------------------------------------------
 
-(define (table-column df k)
+(define (table-column df k #:as [as #f])
   (match (assq k (table-data df))
     [(cons name data)
-     (column name (table-index df) data)]
+     (column (or as name) (table-index df) data)]
     [else
      (error "Column not found in table:" k)]))
 
@@ -105,7 +105,14 @@ All rights reserved.
         ; append the column name . data to the table
         (struct-copy table
                      df
-                     [data (append (table-data df) (list (cons name v)))]))))
+                     [data (if (assq name (table-data df))
+                               (map (λ (col)
+                                      (if (eq? (car col) name)
+                                          (cons name v)
+                                          col))
+                                    (table-data df))
+                               (append (table-data df)
+                                       (list (cons name v))))]))))
 
 ;; ----------------------------------------------------
 
@@ -206,29 +213,37 @@ All rights reserved.
 
 ;; ----------------------------------------------------
 
-(define (table-sort df k [less-than? less-than?])
-  (let ([col (table-column df k)])
+(define (table-sort df [ks #f] [less-than? less-than?])
+  (let ([cols (if ks (table-cut df ks) df)])
     (struct-copy table
                  df
-                 [index (let ([sorted (column-sort col less-than?)])
-                          (column-index sorted))])))
+                 [index (vector-sort (table-index df)
+                                     less-than?
+                                     #:cache-keys? #t
+                                     #:key (λ (i)
+                                             (cdr (table-row cols i))))])))
 
 ;; ----------------------------------------------------
 
-(define (table-distinct df k [keep 'first])
+(define (table-distinct df [ks #f] [keep 'first])
   (let ([h (make-hash)])
     (for ([i (table-index df)]
           [n (in-naturals)]
-          [x (table-column df k)] #:when x)
+          [r (if ks (table-cut df ks) df)])
       (case keep
-        [(first) (hash-ref! h x (cons n i))]
-        [(last)  (hash-set! h x (cons n i))]
-        [(none)  (hash-set! h x (if (hash-has-key? h x) #f i))]))
+        [(first) (hash-ref! h (cdr r) (cons n i))]
+        [(last)  (hash-set! h (cdr r) (cons n i))]
+        [(none)  (hash-update! h
+                               (cdr r)
+                               (λ (x) (and (eq? x #t) (cons n i)))
+                               #t)]))
 
     ; build the new table index
     (struct-copy table
                  df
-                 [index (let ([indices (sort (remq* '(#f) (hash-values h)) < #:key car)])
+                 [index (let ([indices (sort (remq* '(#f) (hash-values h))
+                                             <
+                                             #:key car)])
                           (for/vector ([i indices])
                             (cdr i)))])))
 
@@ -275,13 +290,13 @@ All rights reserved.
   ; check mapping, filtering, etc.
   (check-equal? (sequence->list (table-map age-filter df '(age))) '(#f #f #t #t #f))
   (check-equal? (table-index (table-filter age-filter df '(age))) #(2 3))
-  (check-equal? (table-index (table-sort df 'age)) #(2 3 4 1 0))
+  (check-equal? (table-index (table-sort df '(age))) #(2 3 4 1 0))
   (check-equal? (table-index (table-reverse df)) #(4 3 2 1 0))
 
   ; distinct column values
-  (check-equal? (table-index (table-distinct df 'gender 'first)) #(0 1))
-  (check-equal? (table-index (table-distinct df 'gender 'last)) #(2 4))
-  (check-equal? (table-index (table-distinct df 'gender 'none)) #())
+  (check-equal? (table-index (table-distinct df '(gender) 'first)) #(0 1))
+  (check-equal? (table-index (table-distinct df '(gender) 'last)) #(2 4))
+  (check-equal? (table-index (table-distinct df '(gender) 'none)) #())
 
   ; check reindexing
   (let ([rdf (table-reindex (table-filter age-filter df '(age)))])
@@ -289,6 +304,12 @@ All rights reserved.
     (check-equal? (table-data rdf) '((name . #("Isabel" "Dave"))
                                      (age . #(12 24))
                                      (gender . #(f m)))))
+
+  ; check column updating
+  (let ([rdf (table-with-column df (table-map (λ (i age) (- age 10)) df '(age)) #:name 'age)])
+    (check-equal? (table-column-names rdf) '(name age gender))
+    (check-equal? (column-data (table-column rdf 'age))
+                  #(34 29 2 14 28)))
 
   ; check adding columns
   (let ([ndf (table-with-column empty-table (in-range 5))])

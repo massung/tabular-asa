@@ -1,5 +1,6 @@
 #lang racket
 
+(require racket/date)
 (require racket/generic)
 
 ;; ----------------------------------------------------
@@ -15,10 +16,55 @@
    [number? (define (less-than? a b) (or (not b) (< a b)))]
    [string? (define (less-than? a b) (or (not b) (string<? a b)))]
    [char? (define (less-than? a b) (or (not b) (char<? a b)))]
-   [sequence? (define (less-than? a b) (sequence<? a b))]))
+   [sequence? (define (less-than? a b) (or (not b) (sequence<? a b)))]
+   [date? (define (less-than? a b) (or (not b) (date*<? a b)))]))
 
 ;; ----------------------------------------------------
 
 (define (sequence<? xs ys)
-  (for/and ([x xs] [y ys])
-    (less-than? x y)))
+  (cond
+    [(null? ys) #f]
+    [(null? xs) (not (null? ys))]
+    [else       (let ([x (car xs)]
+                      [y (car ys)])
+                  (or (less-than? x y)
+                      (and (equal? x y)
+                           (sequence<? (cdr xs) (cdr ys)))))]))
+
+;; ----------------------------------------------------
+
+(define (date*<? a b)
+  (< (date*->seconds a)
+     (date*->seconds b)))
+
+;; ----------------------------------------------------
+
+(module+ test
+  (require rackunit)
+
+  ; create a couple dates
+  (define d1 (current-date))
+  (define d2 (begin
+               (sleep 0.01)
+               (current-date)))
+
+  ; test positive and negative
+  (define (check<? a b)
+    (check-true (less-than? a b))
+    (check-false (less-than? b a)))
+
+  ; test comparisons
+  (check<? 1.0 2)
+  (check<? "abc" "def")
+  (check<? "ABC" "abc")
+  (check<? #\a #\b)
+  (check<? #\A #\B)
+  (check<? '(1 2 3) '(1 2 4))
+  (check<? '() '(1 2 3))
+  (check<? d1 d2)
+  (check<? 10 #f)
+  (check<? "a" #f)
+  (check<? #\a #f)
+  (check<? '(1) #f)
+  (check<? d1 #f)
+  (check<? #t #f))

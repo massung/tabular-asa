@@ -11,11 +11,11 @@ All rights reserved.
 
 (require "column.rkt")
 (require "index.rkt")
-(require "agg.rkt")
 (require "table.rkt")
 (require "read.rkt")
 (require "for.rkt")
 (require "join.rkt")
+(require "group.rkt")
 (require "print.rkt")
 (require "write.rkt")
 
@@ -52,9 +52,6 @@ All rights reserved.
  index-max
  index-median
  index-mode
-
- ; agg
- index-count
 
  ; table
  (struct-out table)
