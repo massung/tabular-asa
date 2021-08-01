@@ -87,15 +87,15 @@ All rights reserved.
 
 ;; ----------------------------------------------------
 
-(define (table-with-column df seq #:name [name #f])
-  (unless name
-    (set! name (gensym "col")))
+(define (table-with-column df seq #:as [as #f])
+  (unless as
+    (set! as (gensym "col")))
 
   ; empty tables get an entirely new index
   (if (empty? (table-data df))
       (let ([col (build-column seq)])
         (table (column-index col)
-               (list (cons name (column-data col)))))
+               (list (cons as (column-data col)))))
 
       ; create a new data vector using the existing index
       (let ([v (make-vector (+ (vector-argmax identity (table-index df)) 1) #f)])
@@ -105,14 +105,14 @@ All rights reserved.
         ; append the column name . data to the table
         (struct-copy table
                      df
-                     [data (if (assq name (table-data df))
+                     [data (if (assq as (table-data df))
                                (map (λ (col)
-                                      (if (eq? (car col) name)
-                                          (cons name v)
+                                      (if (eq? (car col) as)
+                                          (cons as v)
                                           col))
                                     (table-data df))
                                (append (table-data df)
-                                       (list (cons name v))))]))))
+                                       (list (cons as v))))]))))
 
 ;; ----------------------------------------------------
 
@@ -197,14 +197,24 @@ All rights reserved.
 ;; ----------------------------------------------------
 
 (define (table-map proc df [ks #f])
-  (sequence-map (λ (row)
-                  (apply proc row))
-                (if ks (table-cut df ks) df)))
+  (sequence-map proc (if ks (table-cut df ks) df)))
+
+;; ----------------------------------------------------
+
+(define (table-apply proc df [ks #f])
+  (table-map (λ (row) (apply proc row)) df ks))
 
 ;; ----------------------------------------------------
 
 (define (table-filter proc df [ks #f])
-  (table-select df (table-map proc df ks)))
+  (table-select df (table-apply proc df ks)))
+
+;; ----------------------------------------------------
+
+(define (table-reverse df)
+  (struct-copy table
+               df
+               [index (vector-reverse (table-index df))]))
 
 ;; ----------------------------------------------------
 
@@ -249,13 +259,6 @@ All rights reserved.
 
 ;; ----------------------------------------------------
 
-(define (table-reverse df)
-  (struct-copy table
-               df
-               [index (vector-reverse (table-index df))]))
-
-;; ----------------------------------------------------
-
 (module+ test
   (require rackunit)
 
@@ -288,7 +291,7 @@ All rights reserved.
     (< age 30))
 
   ; check mapping, filtering, etc.
-  (check-equal? (sequence->list (table-map age-filter df '(age))) '(#f #f #t #t #f))
+  (check-equal? (sequence->list (table-apply age-filter df '(age))) '(#f #f #t #t #f))
   (check-equal? (table-index (table-filter age-filter df '(age))) #(2 3))
   (check-equal? (table-index (table-sort df '(age))) #(2 3 4 1 0))
   (check-equal? (table-index (table-reverse df)) #(4 3 2 1 0))
@@ -306,7 +309,7 @@ All rights reserved.
                                      (gender . #(f m)))))
 
   ; check column updating
-  (let ([rdf (table-with-column df (table-map (λ (i age) (- age 10)) df '(age)) #:name 'age)])
+  (let ([rdf (table-with-column df (table-apply (λ (i age) (- age 10)) df '(age)) #:as 'age)])
     (check-equal? (table-column-names rdf) '(name age gender))
     (check-equal? (column-data (table-column rdf 'age))
                   #(34 29 2 14 28)))
@@ -314,6 +317,6 @@ All rights reserved.
   ; check adding columns
   (let ([ndf (table-with-column empty-table (in-range 5))])
     (check-equal? (table-length ndf) 5)
-    (check-true (all? (table-map = ndf))))
-  (let ([ndf (table-with-column df (table-map age-filter df '(age)) #:name 'child)])
+    (check-true (all? (table-apply = ndf))))
+  (let ([ndf (table-with-column df (table-apply age-filter df '(age)) #:as 'child)])
     (check-equal? (column-data (table-column ndf 'child)) #(#f #f #t #t #f))))

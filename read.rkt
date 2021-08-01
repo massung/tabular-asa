@@ -87,7 +87,7 @@ All rights reserved.
 
 ;; ----------------------------------------------------
 
-(define (table-read/sequence seq columns)
+(define (table-read/sequence seq [columns '()])
   (let ([builder (new table-builder% [columns columns])])
     (for ([row seq])
       (send builder add-row row))
@@ -180,9 +180,18 @@ All rights reserved.
 (module+ test
   (require rackunit)
 
-  ; load a table from disk
-  (define books (call-with-input-file "test/books.csv" table-read/csv))
+  (test-case "table-read/sequence"
+             (define df (table-read/sequence '(("Superman" m "DC")
+                                               ("Captain Marvel" f "Marvel"))
+                                             '(hero gender universe)))
 
-  ; ensure shape, do a quick filter and check results
-  (check-equal? (table-length books) 210)
-  (check-equal? (table-length (table-drop-na books)) 112))
+             ; validate integrity
+             (check-equal? (table-column-names df) '(hero gender universe))
+             (check-equal? (table-length df) 2))
+
+  (test-case "table-read/csv"
+             (define df (call-with-input-file "test/books.csv" table-read/csv))
+
+             ; ensure shape, do a quick filter and check results
+             (check-equal? (table-length df) 210)
+             (check-equal? (table-length (table-drop-na df)) 112)))

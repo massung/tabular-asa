@@ -15,18 +15,22 @@
 
 (define-syntax (for/table stx)
   (syntax-case stx ()
-    [(_ (init-form ...) sequences body ... tail-expr)
+    [(_ (init-forms ...) sequences body ... tail-expr)
      (with-syntax ([original stx]
                    [((pre-body ...) (post-body ...))
                     (split-for-body stx #'(body ... tail-expr))])
        #'(for/fold/derived original
-           ([b (new table-builder% init-form ...)] #:result (send b build))
+           ([b (new table-builder% init-forms ...)] #:result (send b build))
            sequences
            pre-body ...
 
            ; each body result is a list/row of values
-           (let ([row (let () post-body ...)])
-             (begin0 b (send b add-row row)))))]))
+           (begin0 b
+                   (match (let () post-body ...)
+                     [(? list? row)
+                      (send b add-row row)]
+                     [(? hash? record)
+                      (send b add-record record)]))))]))
 
 ;; ----------------------------------------------------
 
@@ -35,14 +39,34 @@
 
   ; create a list of some names
   (define names '("Superman" "Batman" "Black Widow" "Wolverine" "Wonder Woman"))
+  (define genders '(m m f m f))
+  (define universes '("DC" "DC" "Marvel" "Marvel" "DC"))
 
-  ; create a simple table for the heroes
-  (define heroes (for/table ([columns '(name length)])
-                   ([name names])
-                   (list name (string-length name))))
+  ; validates the table
+  (define (verify-table df)
+    (check-equal? (table-length df) (length names))
+    (check-equal? (table-column-names df) '(name gender universe))
+    (check-equal? (sequence->list df)
+                  (for/list ([i (in-naturals)]
+                             [name names]
+                             [gender genders]
+                             [universe universes])
+                    (list i name gender universe))))
 
-  ; ensure everything matches up
-  (check-equal? (table-length heroes) (length names))
-  (check-equal? (table-column-names heroes) '(name length))
-  (check-equal? (sequence->list (table-column heroes 'length))
-                (map string-length names)))
+  ; create with rows
+  (test-case "for/table - rows"
+             (verify-table (for/table ([columns '(name gender universe)])
+                             ([name names]
+                              [gender genders]
+                              [universe universes])
+                             (list name gender universe))))
+
+  ; create with records
+  (test-case "for/table - records"
+             (verify-table (for/table ([columns '(name gender universe)])
+                             ([name names]
+                              [gender genders]
+                              [universe universes])
+                             (hash 'name name
+                                   'gender gender
+                                   'universe universe)))))

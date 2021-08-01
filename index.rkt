@@ -96,7 +96,8 @@ All rights reserved.
     ; build the key-space vector, then sort the keys
     (let ([keys (for/vector ([(k indices) h])
                   (cons k (reverse indices)))])
-      (vector-sort! keys less-than? #:key car)
+      (when less-than?
+        (vector-sort! keys less-than? #:key car))
 
       ; build the final index
       (index keys less-than?))))
@@ -117,32 +118,44 @@ All rights reserved.
 
 ;; ----------------------------------------------------
 
+(define (index-sorted? ix)
+  (not (not (index-less-than? ix))))
+
+;; ----------------------------------------------------
+
 (define (index-find ix key [exact #t])
   (let* ([keys (index-keys ix)]
          [n (vector-length keys)]
          [less-than? (index-less-than? ix)])
-    (letrec ([search (λ (i start end)
-                       (let ([group (vector-ref keys i)])
-                         (cond
-                           [(equal? key (car group)) i]
+    (cond
+      [(zero? n) #f]
 
-                           ; nothing more to search?
-                           [(= i start)
-                            (and (not exact)
-                                 (if (less-than? key (car group))
-                                     i
-                                     end))]
+      ; not sorted? O(n) search
+      [(not less-than?)
+       (for/first ([(ks i) (in-indexed keys)] #:when (equal? (car ks) key)) i)]
 
-                           ; search left or right?
-                           [else
-                            (if (less-than? key (car group))
-                                (let ([ni (arithmetic-shift (+ start i) -1)])
-                                  (search ni start i))
-                                (let ([ni (arithmetic-shift (+ i end) -1)])
-                                  (search ni i end)))])))])
-      (if (index-empty? ix)
-          #f
-          (search (arithmetic-shift n -1) 0 n)))))
+      ; non-empty, sorted index - binary search
+      [else
+       (letrec ([search (λ (i start end)
+                          (let ([group (vector-ref keys i)])
+                            (cond
+                              [(equal? key (car group)) i]
+
+                              ; nothing more to search?
+                              [(= i start)
+                               (and (not exact)
+                                    (if (less-than? key (car group))
+                                        i
+                                        end))]
+
+                              ; search left or right?
+                              [else
+                               (if (less-than? key (car group))
+                                   (let ([ni (arithmetic-shift (+ start i) -1)])
+                                     (search ni start i))
+                                   (let ([ni (arithmetic-shift (+ i end) -1)])
+                                     (search ni i end)))])))])
+         (search (arithmetic-shift n -1) 0 n))])))
 
 ;; ----------------------------------------------------
 

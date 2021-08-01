@@ -44,6 +44,7 @@ All rights reserved.
  index-scan
  index-length
  index-empty?
+ index-sorted?
  index-find
  index-member
  index-ref
@@ -75,6 +76,7 @@ All rights reserved.
  table-select
  table-for-each
  table-map
+ table-apply
  table-filter
  table-drop-na
  table-sort
