@@ -17,6 +17,14 @@ All rights reserved.
 
 ;; ----------------------------------------------------
 
+(define-syntax (:> stx)
+  (syntax-case stx ()
+    [(_ x) #'x]
+    [(_ x f fs ...)
+     #'(:> (f x) fs ...)]))
+
+;; ----------------------------------------------------
+
 (define (sequence-zip xs)
   (match xs
     [(list)

@@ -6,6 +6,7 @@
 (require "index.rkt")
 (require "read.rkt")
 (require "table.rkt")
+(require "utils.rkt")
 
 ;; ----------------------------------------------------
 
@@ -14,17 +15,13 @@
 ;; ----------------------------------------------------
 
 (struct group [table by index]
-  #:property prop:sequence
-  (λ (g) (group-table g))
-
-  ; custom printing
   #:methods gen:custom-write
   [(define write-proc
      (λ (g port mode)
-       (fprintf port "#<group ~a [~a rows x ~a cols]>"
+       (fprintf port "#<group by ~a [~a rows x ~a cols]>"
                 (group-by g)
-                (index-length (group-index g))
-                (length (table-data (group-table g))))))])
+                (:> g group-index index-length)
+                (:> g group-table table-data length add1))))])
 
 ;; ----------------------------------------------------
 
@@ -71,6 +68,64 @@
 
 ;; ----------------------------------------------------
 
+(define (group-sum g)
+  (group-fold (λ (a b) (if b (+ a b) a)) 0 g))
+
+;; ----------------------------------------------------
+
+(define (group-product g)
+  (group-fold (λ (a b) (if b (* a b) a)) 1 g))
+
+;; ----------------------------------------------------
+
+(define (group-and g)
+  (group-fold (λ (a b) (and a b #t)) #t g))
+
+;; ----------------------------------------------------
+
+(define (group-or g)
+  (group-fold (λ (a b) (or a (not (false? b)))) #f g))
+
+;; ----------------------------------------------------
+
+(define (group-list g)
+  (let ([agg (λ (a b)
+               (if (not b)
+                   a
+                   (cons b a)))])
+    (group-fold agg '() g)))
+
+;; ----------------------------------------------------
+
+(define (group-unique g)
+  (let ([agg (λ (a b)
+               (if (not b)
+                   a
+                   (set-add a b)))])
+    (group-fold agg (set) g #:result set->list)))
+
+;; ----------------------------------------------------
+
+(define (group-nunique g)
+  (let ([df (group-unique g)])
+    (for/table ([columns (table-column-names df)])
+               ([row df])
+      (cons (second row) (map length (cddr row))))))
+
+;; ----------------------------------------------------
+
+(define (group-sample g)
+  (let ([agg (λ (a b)
+               (if (not b)
+                   a
+                   (match a
+                     [(cons x n)
+                      (let ([m (add1 n)])
+                        (cons (if (zero? (random m)) b x) m))])))])
+    (group-fold agg (cons #f 0) g #:result car)))
+
+;; ----------------------------------------------------
+
 (module+ test
   (require rackunit)
   (require "print.rkt")
@@ -79,9 +134,10 @@
   (define birds (table-read/sequence '(("Crane" 4.3 7.3)
                                        ("Crane" 5.2 7.5)
                                        ("Egret" 2.6 4.3)
-                                       ("Egret" 3.4 5.5)
+                                       ("Egret" #f 5.5)
                                        ("Heron" 3.2 5.5)
                                        ("Heron" 5.5 6.6)
+                                       ("Heron" 4.2 #f)
                                        ("Stork" 3.3 5.0)
                                        ("Stork" 3.8 5.0))
                                      '(bird length wingspan)))
@@ -90,6 +146,6 @@
   (define g (table-group birds 'bird))
 
   ; min length by bird
-  (let ([df (group-mean (table-group birds 'bird))])
+  (let ([df (group-sample (table-group birds 'bird))])
     (display-table df))
   )

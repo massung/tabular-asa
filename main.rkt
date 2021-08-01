@@ -87,6 +87,22 @@ All rights reserved.
  table-join/inner
  table-join/outer
 
+ ; group
+ table-group
+ group-fold
+ group-count
+ group-min
+ group-max
+ group-mean
+ group-sum
+ group-product
+ group-and
+ group-or
+ group-list
+ group-unique
+ group-nunique
+ group-sample
+
  ; read
  table-builder%
  table-read/sequence
