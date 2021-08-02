@@ -29,7 +29,7 @@
 
 ; Filtering
 
-(let ([df (table-sort books '(Height) greater-than?)])
+(let ([df (table-sort books '(Height) descending?)])
   (show-table "Largest book by genre..." (table-distinct df '(Genre))))
 
 ;(define pub-group (
