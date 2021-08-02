@@ -311,6 +311,10 @@ All rights reserved.
                                      (age . #(12 24))
                                      (gender . #(f m)))))
 
+  ; check sorting of filtered data
+  (let ([rdf (table-sort (table-filter age-filter df '(age)) '(age) sort-descending)])
+    (check-equal? (table-index rdf) #(3 2)))
+
   ; check column updating
   (let ([rdf (table-with-column df (table-apply (λ (i age) (- age 10)) df '(age)) #:as 'age)])
     (check-equal? (table-column-names rdf) '(name age gender))
