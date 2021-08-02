@@ -10,27 +10,27 @@
 ;; ----------------------------------------------------
 
 (define-generics orderable
-  (ascending? orderable other)
-  (descending? orderable other)
+  (sort-ascending orderable other)
+  (sort-descending orderable other)
   #:fast-defaults
   ([boolean?
-    (define (ascending? a b) (and a (not b)))
-    (define (descending? a b) (or a (not b)))]
+    (define (sort-ascending a b) (and a (not b)))
+    (define (sort-descending a b) (or a (not b)))]
    [number?
-    (define (ascending? a b) (or (not b) (< a b)))
-    (define (descending? a b) (or (not b) (> a b)))]
+    (define (sort-ascending a b) (or (not b) (< a b)))
+    (define (sort-descending a b) (or (not b) (> a b)))]
    [string?
-    (define (ascending? a b) (or (not b) (string<? a b)))
-    (define (descending? a b) (or (not b) (string>? a b)))]
+    (define (sort-ascending a b) (or (not b) (string<? a b)))
+    (define (sort-descending a b) (or (not b) (string>? a b)))]
    [char?
-    (define (ascending? a b) (or (not b) (char<? a b)))
-    (define (descending? a b) (or (not b) (char>? a b)))]
+    (define (sort-ascending a b) (or (not b) (char<? a b)))
+    (define (sort-descending a b) (or (not b) (char>? a b)))]
    [sequence?
-    (define (ascending? a b) (or (not b) (sequence<? a b)))
-    (define (descending? a b) (or (not b) (sequence>? a b)))]
+    (define (sort-ascending a b) (or (not b) (sequence<? a b)))
+    (define (sort-descending a b) (or (not b) (sequence>? a b)))]
    [date?
-    (define (ascending? a b) (or (not b) (< (date*->seconds a) (date*->seconds b))))
-    (define (descending? a b) (or (not b) (> (date*->seconds a) (date*->seconds b))))]))
+    (define (sort-ascending a b) (or (not b) (< (date*->seconds a) (date*->seconds b))))
+    (define (sort-descending a b) (or (not b) (> (date*->seconds a) (date*->seconds b))))]))
 
 ;; ----------------------------------------------------
 
@@ -40,7 +40,7 @@
     [(null? xs) (not (null? ys))]
     [else       (let ([x (car xs)]
                       [y (car ys)])
-                  (or (ascending? x y)
+                  (or (sort-ascending x y)
                       (and (equal? x y)
                            (sequence<? (cdr xs) (cdr ys)))))]))
 
@@ -52,7 +52,7 @@
     [(null? ys) (not (null? xs))]
     [else       (let ([x (car xs)]
                       [y (car ys)])
-                  (or (descending? x y)
+                  (or (sort-descending x y)
                       (and (equal? x y)
                            (sequence>? (cdr xs) (cdr ys)))))]))
 
@@ -69,12 +69,12 @@
 
   ; test positive and negative
   (define (check<? a b)
-    (check-true (ascending? a b))
-    (check-false (ascending? b a))
+    (check-true (sort-ascending a b))
+    (check-false (sort-ascending b a))
 
     (when b
-      (check-true (descending? b a))
-      (check-false (descending? a b))))
+      (check-true (sort-descending b a))
+      (check-false (sort-descending a b))))
 
   ; test comparisons
   (test-case "ascending?"

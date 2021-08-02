@@ -9,8 +9,8 @@ All rights reserved.
 
 |#
 
-(require "compare.rkt")
 (require "index.rkt")
+(require "orderable.rkt")
 (require "utils.rkt")
 
 ;; ----------------------------------------------------
@@ -108,7 +108,7 @@ All rights reserved.
 
 ;; ----------------------------------------------------
 
-(define (column-sort col [less-than? ascending?])
+(define (column-sort col [less-than? sort-ascending])
   (let ([ix (column-index col)]
         [data (column-data col)])
     (struct-copy column

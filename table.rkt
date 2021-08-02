@@ -10,7 +10,7 @@ All rights reserved.
 |#
 
 (require "column.rkt")
-(require "compare.rkt")
+(require "orderable.rkt")
 (require "utils.rkt")
 
 ;; ----------------------------------------------------
@@ -223,7 +223,7 @@ All rights reserved.
 
 ;; ----------------------------------------------------
 
-(define (table-sort df [ks #f] [less-than? ascending?])
+(define (table-sort df [ks #f] [less-than? sort-ascending])
   (let ([cols (if ks (table-cut df ks) df)])
     (struct-copy table
                  df

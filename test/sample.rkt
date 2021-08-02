@@ -2,7 +2,6 @@
 
 ;(require tabular-asa)
 (require "../main.rkt")
-(require "../compare.rkt")
 
 ;; First, let's load a CSV file of books in memory
 
@@ -25,12 +24,12 @@
 ;; Grouping and aggregating
 
 (let ([g (table-group (table-cut books '(Publisher Title)) 'Publisher)])
-  (show-table "Number of titles by publisher..." (table-sort (group-count g) '(Title) descending?))
+  (show-table "Number of titles by publisher..." (table-sort (group-count g) '(Title) sort-descending))
   (show-table "Random title per publisher..." (group-sample g)))
 
 ; Filtering
 
-(let ([df (table-sort books '(Height) descending?)])
+(let ([df (table-sort books '(Height) sort-descending)])
   (show-table "Largest book by genre..." (table-distinct df '(Genre))))
 
 ;(define pub-group (

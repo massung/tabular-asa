@@ -13,7 +13,7 @@ All rights reserved.
 
 ;; ----------------------------------------------------
 
-(require "compare.rkt")
+(require "orderable.rkt")
 
 ;; ----------------------------------------------------
 
@@ -88,7 +88,7 @@ All rights reserved.
 
 ;; ----------------------------------------------------
 
-(define (build-index seq [less-than? ascending?])
+(define (build-index seq [less-than? sort-ascending])
   (let ([h (make-hash)])
     (for ([(x i) (in-indexed seq)] #:when x)
       (hash-update! h x (λ (ix) (cons i ix)) '()))

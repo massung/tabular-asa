@@ -10,18 +10,23 @@ All rights reserved.
 |#
 
 (require "column.rkt")
-(require "index.rkt")
-(require "table.rkt")
-(require "read.rkt")
 (require "for.rkt")
-(require "join.rkt")
 (require "group.rkt")
+(require "index.rkt")
+(require "join.rkt")
+(require "orderable.rkt")
 (require "print.rkt")
+(require "read.rkt")
+(require "table.rkt")
 (require "write.rkt")
 
 ;; ----------------------------------------------------
 
 (provide
+
+ ; orderable
+ sort-ascending
+ sort-descending
 
  ; column
  (struct-out column)

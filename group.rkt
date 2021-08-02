@@ -1,9 +1,9 @@
 #lang racket
 
 (require "column.rkt")
-(require "compare.rkt")
 (require "for.rkt")
 (require "index.rkt")
+(require "orderable.rkt")
 (require "read.rkt")
 (require "table.rkt")
 (require "utils.rkt")
@@ -47,12 +47,12 @@
 
 ;; ----------------------------------------------------
 
-(define (group-min g [less-than? ascending?])
+(define (group-min g [less-than? sort-ascending])
   (group-fold (λ (a b) (if (or (not a) (less-than? a b)) a b)) #f g))
 
 ;; ----------------------------------------------------
 
-(define (group-max g [less-than? ascending?])
+(define (group-max g [less-than? sort-ascending])
   (group-fold (λ (a b) (if (or (not a) (less-than? a b)) b a)) #f g))
 
 ;; ----------------------------------------------------

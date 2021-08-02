@@ -9,8 +9,8 @@ All rights reserved.
 
 |#
 
-(require "compare.rkt")
 (require "index.rkt")
+(require "orderable.rkt")
 (require "table.rkt")
 (require "read.rkt")
 
@@ -59,7 +59,7 @@ All rights reserved.
 
 ;; ----------------------------------------------------
 
-(define (table-join/inner df other on [less-than? ascending?] #:with [with on])
+(define (table-join/inner df other on [less-than? sort-ascending] #:with [with on])
   (let ([left (table-remapped df other "-x" on #f)]
         [right (table-remapped other df "-y" with (eq? on with))]
         [ix (build-index (table-column other with) less-than?)])
@@ -71,7 +71,7 @@ All rights reserved.
 
 ;; ----------------------------------------------------
 
-(define (table-join/outer df other on [less-than? ascending?] #:with [with on])
+(define (table-join/outer df other on [less-than? sort-ascending] #:with [with on])
   (let ([left (table-remapped df other "-x" on #f)]
         [right (table-remapped other df "-y" with (eq? on with))]
         [ix (build-index (table-column other with) less-than?)])
