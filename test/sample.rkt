@@ -14,6 +14,7 @@
   (displayln title)
   (displayln (make-string (string-length title) #\-))
   (display-table df)
+  (newline)
   (newline))
 
 ;; Sorting by column(s)
@@ -24,7 +25,7 @@
 ;; Grouping and aggregating
 
 (let ([g (table-group (table-cut books '(Publisher Title)) 'Publisher)])
-  (show-table "Number of titles by publisher..." (table-sort (group-count g) '(Title)))
+  (show-table "Number of titles by publisher..." (table-sort (group-count g) '(Title) descending?))
   (show-table "Random title per publisher..." (group-sample g)))
 
 ; Filtering

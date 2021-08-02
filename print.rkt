@@ -98,7 +98,13 @@ All rights reserved.
     (for ([i (index-preview df)]
           [row (sequence-zip (for/list ([k (table-column-names df)])
                                (column-preview df k)))])
-      (row-format i row))))
+      (row-format i row))
+
+    ; output the shape of the table
+    (newline)
+    (fprintf port "[~a rows x ~a cols]"
+             (table-length df)
+             (length (table-data df)))))
 
 ;; ----------------------------------------------------
 
