@@ -1,34 +1,41 @@
 #lang racket
 
+#|
+
+Tabular Asa - a fast, efficient, dataframes implementation
+
+Copyright (c) 2021 by Jeffrey Massung
+All rights reserved.
+
+|#
+
 ;(require tabular-asa)
 (require "../main.rkt")
+(require plot)
+(require threading)
 
 ;; helper function for displaying output
 
-(define (show-table title df)
-  (displayln title)
-  (displayln (make-string (string-length title) #\-))
-  (display-table df)
-  (newline)
-  (newline))
-
-;; First, let's load a CSV file of books in memory
-
+; load a CSV file into a dataframe
 (define books (call-with-input-file "books.csv" table-read/csv))
-(show-table "All books..." books)
 
-;; Sorting by column(s)
+; pick a random title per genre
+(group-sample (group-table/by books '(Genre)))
 
-(let ([df (table-sort (table-drop-na books '(Author Title)) '(Author Title))])
-  (show-table "Books sorted by Author and Title (missing removed)..." df))
+; find the longest books by publisher
+(~> books 
+    (table-drop-na '(Publisher))
+    (table-sort '(Height) sort-descending)
+    (table-distinct '(Publisher)))
 
-;; Grouping and aggregating
+; count how many books of each genre by publisher
+(~> books
+    (table-cut '(Publisher Genre Title))
+    (group-table/by '(Publisher Genre))
+    (group-count))
 
-(let ([g (group-table/by (table-cut books '(Publisher Title)) 'Publisher)])
-  (show-table "Number of titles by publisher..." (table-sort (group-count g) '(Title) sort-descending))
-  (show-table "Random title per publisher..." (group-sample g)))
-
-; Filtering
-
-(let ([df (table-sort books '(Height) sort-descending)])
-  (show-table "Largest book by genre..." (table-distinct df '(Genre))))
+; index the books by author and collect those rows
+(let ([ix (build-index (table-column books 'Author))])
+  (for*/list ([(author indices) (index-scan-keys ix #:from "J" #:to "R")]
+              [i indices])
+    (table-row books i)))

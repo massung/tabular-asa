@@ -1,5 +1,14 @@
 #lang racket
 
+#|
+
+Tabular Asa - a fast, efficient, dataframes implementation
+
+Copyright (c) 2021 by Jeffrey Massung
+All rights reserved.
+
+|#
+
 (require "column.rkt")
 (require "for.rkt")
 (require "index.rkt")
@@ -20,14 +29,20 @@
      (λ (g port mode)
        (fprintf port "#<group by ~a [~a rows x ~a cols]>"
                 (group-by g)
-                (:> g group-index index-length)
-                (:> g group-table table-data length add1))))])
+                (index-length (group-index g))
+                (add1 (length (table-data (group-table g)))))))])
 
 ;; ----------------------------------------------------
 
 (define (group-table/by df by)
-  (let ([col (table-column df by)])
-    (group (table-drop df (list by)) by (build-index col #f))))
+  (match by
+    [(list k)
+     (let ([col (table-column df k)])
+       (group (table-drop df (list k)) k (build-index col #f)))]
+    [(list k ks ...)
+     (group (table-drop df by)
+            by
+            (build-index (sequence-map cdr (table-cut df by)) #f))]))
 
 ;; ----------------------------------------------------
 
@@ -143,7 +158,7 @@
                                      '(bird length wingspan)))
 
   ; group by bird
-  (define g (group-table/by birds 'bird))
+  (define g (group-table/by birds '(bird)))
 
   ; TODO:
   )

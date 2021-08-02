@@ -4,26 +4,40 @@ A fast, efficient, in-memory, dataframes implementation for [Racket][racket].
 
 # Example Usage
 
-Here's a quick example of it in use:
+Here are a few quick examples of Tabular Asa in use.
 
 ```racket
-(require (rename-in tabular-asa asa:))
+(require tabular-asa)
+(require threading)
 
 ; load a CSV file into a dataframe
-(define books (asa:table-read/csv "test/books.csv"))
+(define books (call-with-input-file "test/books.csv" table-read/csv))
 
-; index the books by publisher
-(define ix (asa:table-index books 'Publisher string<?))
+; pick a random title per genre
+(group-sample (group-table/by books 'Genre))
 
-; get the list of indices for the publisher Penguin
-(define indices (asa:secondary-index->stream ix #:from "Penguin" #:to "Penguin"))
+; find the longest books by publisher
+(~> books 
+    (table-drop-na '(Publisher))
+    (table-sort '(Height) sort-descending)
+    (table-distinct '(Publisher)))
 
-; count the total "height" of all books published by Penguin
-(let ([cut (asa:table-cut books '(Height))])
-  (apply + (asa:table-map cut indices #:keep-index? #f)))
+; count how many books of each genre by publisher
+(~> books
+    (table-cut '(Publisher Genre Title))
+    (group-table/by '(Publisher Genre))
+    (group-count))
 
+; index the books by author and collect those rows
+(let ([ix (build-index (table-column books 'Author))])
+  (for*/list ([(author indices) (index-scan-keys ix #:from "J" #:to "R")]
+              [i indices])
+    (table-irow books i)))
 ```
+
+_NOTE: These examples make use of the [threading][threading] library for clarity of the code, but Tabular Asa doesn't require it as a dependency._
 
 # fin.
 
 [racket]: https://racket-lang.org/
+[threading]: https://pkgs.racket-lang.org/package/threading
