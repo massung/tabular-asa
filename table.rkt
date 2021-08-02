@@ -143,11 +143,15 @@ All rights reserved.
 
 ;; ----------------------------------------------------
 
+(define (table-irow df i)
+  (for/list ([col (table-data df)])
+    (vector-ref (cdr col) i)))
+
+;; ----------------------------------------------------
+
 (define (table-row df n)
-  (let ([ix (table-index df)])
-    (cons (vector-ref ix n)
-          (for/list ([col (table-data df)])
-            (vector-ref (cdr col) n)))))
+  (let ([i (vector-ref (table-index df) n)])
+    (cons i (table-irow df i))))
 
 ;; ----------------------------------------------------
 
@@ -230,8 +234,7 @@ All rights reserved.
                  [index (vector-sort (table-index df)
                                      less-than?
                                      #:cache-keys? #t
-                                     #:key (λ (i)
-                                             (cdr (table-row cols i))))])))
+                                     #:key (λ (i) (table-irow cols i)))])))
 
 ;; ----------------------------------------------------
 

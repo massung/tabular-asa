@@ -73,6 +73,7 @@ All rights reserved.
  table-with-columns-renamed
  table-cut
  table-drop
+ table-irow
  table-row
  table-record
  table-records
