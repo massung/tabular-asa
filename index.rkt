@@ -88,7 +88,7 @@ All rights reserved.
 
 ;; ----------------------------------------------------
 
-(define (build-index seq [less-than? less-than?])
+(define (build-index seq [less-than? ascending?])
   (let ([h (make-hash)])
     (for ([(x i) (in-indexed seq)] #:when x)
       (hash-update! h x (λ (ix) (cons i ix)) '()))

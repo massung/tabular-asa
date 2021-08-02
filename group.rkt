@@ -47,12 +47,12 @@
 
 ;; ----------------------------------------------------
 
-(define (group-min g [less-than? less-than?])
+(define (group-min g [less-than? ascending?])
   (group-fold (λ (a b) (if (or (not a) (less-than? a b)) a b)) #f g))
 
 ;; ----------------------------------------------------
 
-(define (group-max g [less-than? less-than?])
+(define (group-max g [less-than? ascending?])
   (group-fold (λ (a b) (if (or (not a) (less-than? a b)) b a)) #f g))
 
 ;; ----------------------------------------------------
@@ -145,7 +145,5 @@
   ; group by bird
   (define g (table-group birds 'bird))
 
-  ; min length by bird
-  (let ([df (group-sample (table-group birds 'bird))])
-    (display-table df))
+  ; TODO:
   )

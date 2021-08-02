@@ -223,7 +223,7 @@ All rights reserved.
 
 ;; ----------------------------------------------------
 
-(define (table-sort df [ks #f] [less-than? less-than?])
+(define (table-sort df [ks #f] [less-than? ascending?])
   (let ([cols (if ks (table-cut df ks) df)])
     (struct-copy table
                  df

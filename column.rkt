@@ -108,7 +108,7 @@ All rights reserved.
 
 ;; ----------------------------------------------------
 
-(define (column-sort col [less-than? less-than?])
+(define (column-sort col [less-than? ascending?])
   (let ([ix (column-index col)]
         [data (column-data col)])
     (struct-copy column

@@ -9,28 +9,28 @@
 
 ;; ----------------------------------------------------
 
-(define-generics comparable
-  (less-than? comparable other)
-  (greater-than? comparable other)
+(define-generics orderable
+  (ascending? orderable other)
+  (descending? orderable other)
   #:fast-defaults
   ([boolean?
-    (define (less-than? a b) (and a (not b)))
-    (define (greater-than? a b) (or a (not b)))]
+    (define (ascending? a b) (and a (not b)))
+    (define (descending? a b) (or a (not b)))]
    [number?
-    (define (less-than? a b) (or (not b) (< a b)))
-    (define (greater-than? a b) (or (not b) (> a b)))]
+    (define (ascending? a b) (or (not b) (< a b)))
+    (define (descending? a b) (or (not b) (> a b)))]
    [string?
-    (define (less-than? a b) (or (not b) (string<? a b)))
-    (define (greater-than? a b) (or (not b) (string>? a b)))]
+    (define (ascending? a b) (or (not b) (string<? a b)))
+    (define (descending? a b) (or (not b) (string>? a b)))]
    [char?
-    (define (less-than? a b) (or (not b) (char<? a b)))
-    (define (greater-than? a b) (or (not b) (char>? a b)))]
+    (define (ascending? a b) (or (not b) (char<? a b)))
+    (define (descending? a b) (or (not b) (char>? a b)))]
    [sequence?
-    (define (less-than? a b) (or (not b) (sequence<? a b)))
-    (define (greater-than? a b) (or (not b) (sequence>? a b)))]
+    (define (ascending? a b) (or (not b) (sequence<? a b)))
+    (define (descending? a b) (or (not b) (sequence>? a b)))]
    [date?
-    (define (less-than? a b) (or (not b) (< (date*->seconds a) (date*->seconds b))))
-    (define (greater-than? a b) (or (not b) (> (date*->seconds a) (date*->seconds b))))]))
+    (define (ascending? a b) (or (not b) (< (date*->seconds a) (date*->seconds b))))
+    (define (descending? a b) (or (not b) (> (date*->seconds a) (date*->seconds b))))]))
 
 ;; ----------------------------------------------------
 
@@ -40,7 +40,7 @@
     [(null? xs) (not (null? ys))]
     [else       (let ([x (car xs)]
                       [y (car ys)])
-                  (or (less-than? x y)
+                  (or (ascending? x y)
                       (and (equal? x y)
                            (sequence<? (cdr xs) (cdr ys)))))]))
 
@@ -52,7 +52,7 @@
     [(null? ys) (not (null? xs))]
     [else       (let ([x (car xs)]
                       [y (car ys)])
-                  (or (greater-than? x y)
+                  (or (descending? x y)
                       (and (equal? x y)
                            (sequence>? (cdr xs) (cdr ys)))))]))
 
@@ -69,15 +69,15 @@
 
   ; test positive and negative
   (define (check<? a b)
-    (check-true (less-than? a b))
-    (check-false (less-than? b a))
+    (check-true (ascending? a b))
+    (check-false (ascending? b a))
 
     (when b
-      (check-true (greater-than? b a))
-      (check-false (greater-than? a b))))
+      (check-true (descending? b a))
+      (check-false (descending? a b))))
 
   ; test comparisons
-  (test-case "less-than?"
+  (test-case "ascending?"
              (check<? 1.0 2)
              (check<? "abc" "def")
              (check<? "ABC" "abc")
