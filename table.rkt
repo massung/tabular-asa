@@ -282,8 +282,8 @@ All rights reserved.
   (check-equal? (table-row df 0) '(0 "Jeff" 44 m))
   (check-equal? (table-record df 0) #hash((name . "Jeff") (age . 44) (gender . m)))
 
-  ; check dropping, cutting
-  (check-equal? (table-column-names (table-cut df '(name age))) '(name age))
+  ; check dropping, cutting and re-ordering of columns
+  (check-equal? (table-column-names (table-cut df '(age name))) '(age name))
   (check-equal? (table-column-names (table-drop df '(age))) '(name gender))
 
   ; check head, tail

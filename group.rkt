@@ -25,7 +25,7 @@
 
 ;; ----------------------------------------------------
 
-(define (table-group df by)
+(define (group-table/by df by)
   (let ([col (table-column df by)])
     (group (table-drop df (list by)) by (build-index col #f))))
 
@@ -143,7 +143,7 @@
                                      '(bird length wingspan)))
 
   ; group by bird
-  (define g (table-group birds 'bird))
+  (define g (group-table/by birds 'bird))
 
   ; TODO:
   )

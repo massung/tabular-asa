@@ -24,7 +24,7 @@
 
 ;; Grouping and aggregating
 
-(let ([g (table-group (table-cut books '(Publisher Title)) 'Publisher)])
+(let ([g (group-table/by (table-cut books '(Publisher Title)) 'Publisher)])
   (show-table "Number of titles by publisher..." (table-sort (group-count g) '(Title) sort-descending))
   (show-table "Random title per publisher..." (group-sample g)))
 

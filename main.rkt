@@ -94,7 +94,7 @@ All rights reserved.
  table-join/outer
 
  ; group
- table-group
+ group-table/by
  group-fold
  group-count
  group-min
