@@ -53,7 +53,7 @@ All rights reserved.
 (define (table-empty? df)
   (or (empty? (table-data df))
       (zero? (table-length df))))
-      
+
 ;; ----------------------------------------------------
 
 (define (table-reindex df)
@@ -62,6 +62,13 @@ All rights reserved.
            (cons (car col)
                  (for/vector ([i (table-index df)])
                    (vector-ref (cdr col) i))))))
+
+;; ----------------------------------------------------
+
+(define (table-with-index df index)
+  (struct-copy table
+               df
+               [index index]))
 
 ;; ----------------------------------------------------
 

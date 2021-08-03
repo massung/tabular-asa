@@ -66,6 +66,7 @@ All rights reserved.
  table-shape
  table-empty?
  table-reindex
+ table-with-index
  table-columns
  table-column-names
  table-column

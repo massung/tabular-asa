@@ -28,9 +28,7 @@ All rights reserved.
   (λ (g) 
     (let ([df (group-table g)])
       (sequence-map (λ (key indices)
-                      (values key (struct-copy table
-                                               df
-                                               [index (list->vector indices)])))
+                      (values key (table-with-index df (list->vector indices))))
                     (group-index g))))
   
   #:methods gen:custom-write

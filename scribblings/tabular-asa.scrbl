@@ -35,8 +35,9 @@ Tabular Asa does this by starting with a couple very simple concepts and buildin
 @itemlist[
  @item{Columns.}
  @item{Tables.}
- @item{Indexes.}
- @item{Functions.}
+ @item{Indexing.}
+ @item{Grouping.}
+ @item{Aggregating.}
 ]
 
 TODO: expand further...
