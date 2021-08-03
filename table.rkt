@@ -211,8 +211,18 @@ All rights reserved.
 
 ;; ----------------------------------------------------
 
-(define (table-filter proc df [ks #f])
-  (table-select df (table-apply proc df ks)))
+(define (table-filter pred df [ks #f])
+  (table-select df (table-apply pred df ks)))
+
+;; ----------------------------------------------------
+
+(define (table-take pred df [ks #f])
+  (struct-copy table
+               df
+               [index (for/vector ([i (table-index df)]
+                                   [row (if ks (table-cut df ks) df)]
+                                   #:break (not (apply pred row)))
+                        i)]))
 
 ;; ----------------------------------------------------
 

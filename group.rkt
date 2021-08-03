@@ -24,6 +24,15 @@ All rights reserved.
 ;; ----------------------------------------------------
 
 (struct group [table by index]
+  #:property prop:sequence
+  (λ (g) 
+    (let ([df (group-table g)])
+      (sequence-map (λ (key indices)
+                      (values key (struct-copy table
+                                               df
+                                               [index (list->vector indices)])))
+                    (group-index g))))
+  
   #:methods gen:custom-write
   [(define write-proc
      (λ (g port mode)
