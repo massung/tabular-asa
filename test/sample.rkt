@@ -28,14 +28,28 @@ All rights reserved.
     (table-sort '(Height) sort-descending)
     (table-distinct '(Publisher)))
 
-; count how many books of each genre by publisher
-(~> books
-    (table-cut '(Publisher Genre Title))
-    (group-table/by '(Publisher Genre))
-    (group-count))
+; find all authors using more than one publisher
+(let ([df (~> books
+              (table-cut '(Author Publisher))
+              (table-drop-na)
+              (group-table/by '(Author))
+              (group-unique))])
+  (table-select df (table-apply (λ (publishers)
+                                  (> (length publishers) 1))
+                                df
+                                '(Publisher))))
 
 ; index the books by author and collect those rows
 (let ([ix (build-index (table-column books 'Author))])
   (for*/list ([(author indices) (index-scan-keys ix #:from "J" #:to "R")]
               [i indices])
     (table-row books i)))
+
+; plot how many books there are per genre
+(let ([df (~> books
+              (table-cut '(Genre Title))
+              (group-table/by '(Genre))
+              (group-count))])
+  (plot (discrete-histogram (for/list ([x (table-column df 'Genre)]
+                                       [y (table-column df 'Title)])
+                              (list x y)))))

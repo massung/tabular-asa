@@ -23,8 +23,8 @@ All rights reserved.
   #:property prop:sequence
   (λ (df)
     (sequence-map (λ (i)
-                    (cons i (for/list ([col (table-data df)])
-                              (vector-ref (cdr col) i))))
+                    (for/list ([col (table-data df)])
+                      (vector-ref (cdr col) i)))
                   (table-index df)))
   
   ; custom printing
@@ -83,7 +83,7 @@ All rights reserved.
     [(cons name data)
      (column (or as name) (table-index df) data)]
     [else
-     (error "Column not found in table:" k)]))
+     (error "Column not found:" k)]))
 
 ;; ----------------------------------------------------
 
@@ -130,7 +130,8 @@ All rights reserved.
   (struct-copy table
                df
                [data (remq* '(#f) (for/list ([k ks])
-                                    (assq k (table-data df))))]))
+                                    (let ([col (assq k (table-data df))])
+                                      (or col (error "Column not found:" k)))))]))
 
 ;; ----------------------------------------------------
 
@@ -244,10 +245,10 @@ All rights reserved.
           [n (in-naturals)]
           [r (if ks (table-cut df ks) df)])
       (case keep
-        [(first) (hash-ref! h (cdr r) (cons n i))]
-        [(last)  (hash-set! h (cdr r) (cons n i))]
+        [(first) (hash-ref! h r (cons n i))]
+        [(last)  (hash-set! h r (cons n i))]
         [(none)  (hash-update! h
-                               (cdr r)
+                               r
                                (λ (x) (and (eq? x #t) (cons n i)))
                                #t)]))
 
@@ -290,8 +291,8 @@ All rights reserved.
   (check-equal? (sequence->list (table-column (table-head df 2) 'name)) '("Jeff" "Jennie"))
   (check-equal? (sequence->list (table-column (table-tail df 2) 'name)) '("Dave" "Bob"))
 
-  (define (age-filter i age)
-    (< age 30))
+  ; helper
+  (define (age-filter age) (< age 30))
 
   ; check mapping, filtering, etc.
   (check-equal? (sequence->list (table-apply age-filter df '(age))) '(#f #f #t #t #f))
@@ -316,7 +317,7 @@ All rights reserved.
     (check-equal? (table-index rdf) #(3 2)))
 
   ; check column updating
-  (let ([rdf (table-with-column df (table-apply (λ (i age) (- age 10)) df '(age)) #:as 'age)])
+  (let ([rdf (table-with-column df (table-apply (λ (age) (- age 10)) df '(age)) #:as 'age)])
     (check-equal? (table-column-names rdf) '(name age gender))
     (check-equal? (column-data (table-column rdf 'age))
                   #(34 29 2 14 28)))
