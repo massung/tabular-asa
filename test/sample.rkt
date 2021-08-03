@@ -34,14 +34,11 @@ All rights reserved.
               (table-drop-na)
               (group-table/by '(Author))
               (group-unique))])
-  (table-select df (table-apply (λ (publishers)
-                                  (> (length publishers) 1))
-                                df
-                                '(Publisher))))
+  (table-select df (table-apply (λ~> length (> 1)) df '(Publisher))))
 
 ; index the books by author and collect those rows
 (let ([ix (build-index (table-column books 'Author))])
-  (for*/list ([(author indices) (index-scan-keys ix #:from "J" #:to "R")]
+  (for*/list ([(genre indices) (index-scan-keys ix #:from "Huxley" #:to "M")]
               [i indices])
     (table-row books i)))
 
