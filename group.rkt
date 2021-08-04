@@ -45,7 +45,7 @@ All rights reserved.
   (match by
     [(list k)
      (let ([col (table-column df k)])
-       (group (table-drop df (list k)) k (build-index col #f)))]
+       (group (table-drop df by) k (build-index col #f)))]
     [(list k ks ...)
      (group (table-drop df by)
             by
