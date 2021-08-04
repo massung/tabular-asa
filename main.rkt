@@ -89,13 +89,13 @@ All rights reserved.
  table-reverse
  table-sort
  table-distinct
+ table-group
 
  ; join
  table-join/inner
  table-join/outer
 
  ; group
- group-table/by
  group-fold
  group-count
  group-min

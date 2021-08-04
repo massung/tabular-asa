@@ -74,7 +74,7 @@ It is important to note that - when reading tables - columns that don't already 
 
 @defproc[(table-read/sequence [seq (or/c (listof any/c)
                                          (sequenceof hash-eq?))]
-                              [columns (sequenceof symbol?) '()])
+                              [columns (listof symbol?) '()])
          table?]{
  Creates and returns a new @racket[table] from either a sequence of rows or a sequence of records.
 }
@@ -82,7 +82,9 @@ It is important to note that - when reading tables - columns that don't already 
 @defproc[(table-read/jsexpr [jsexpr jsexpr?]) table?]{
  Given a @racket[jsexpr?], use the shape of the object to determine how it should be transformed into a table.
 
- If @racket[jsexpr] is a JSON object (@racket[hash-eq?]), then it is assumed to be a 
+ If @racket[jsexpr] is a JSON object (@racket[hash-eq?]), then it is assumed to be a hash of columns, where each column contains the values for it.
+
+ If @racket[jsexpr] is a JSON array (@racket[list?]), then it is assumes to be a list of @racket[hash-eq?] records, where the key/value pairs are the column names and values for each row of the table.
 }
 
 @defproc[(table-read/csv [port input-port?]
@@ -116,12 +118,13 @@ It is important to note that - when reading tables - columns that don't already 
                   [data (listof (cons/c symbol? (vectorof any/c)))])]{
  The constructor for a new table structure. There should almost never be a need to call this directly as opposed to using one of the table-read/* functions to load a table from another container or a port.
 
- All tables are also sequences and can be iterated using @racket[for], where each iteration returns the next row (list). For example:
+ All tables are also sequences and can be iterated using @racket[for], where each iteration returns the next index and row (list). For example:
 
  @racketblock[
-  (define df (table #(0 1 2) '((hero . #("Superman" "Batman" "Wonder Woman"))
-                               (gender . #(m m f)))))
-  (for ([row df])
+  (define df (table #(0 1 2)
+                    '((hero . #("Superman" "Batman" "Wonder Woman"))
+                      (gender . #(m m f)))))
+  (for ([(i row) df])
     (displayln row))
  ]
 }
@@ -150,7 +153,9 @@ It is important to note that - when reading tables - columns that don't already 
  Returns a list of symbols, which are the column names of the table.
 }
 
-@defproc[(table-column [df table?] [k symbol?]) column?]{
+@defproc[(table-column [df table?]
+                       [k symbol?])
+         column?]{
  Looks up the column named @racket[k] and returns it. If a column with that name does not exist, raise an error.
 }
 
@@ -172,13 +177,13 @@ It is important to note that - when reading tables - columns that don't already 
 }
 
 @defproc[(table-cut [df table?] 
-                    [ks (listof symbol?)]) 
+                    [ks (list/c symbol? symbol? ...)]) 
          table?]{
  Returns a new table with only the columns @racket[ks].
 }
 
 @defproc[(table-drop [df table?] 
-                     [ks (listof symbol?)]) 
+                     [ks (list/c symbol? symbol? ...)]) 
          table?]{
  Returns a new table with the columns @racket[ks] removed.
 }
@@ -227,27 +232,27 @@ It is important to note that - when reading tables - columns that don't already 
 
 @defproc[(table-map [proc ((listof any/c) -> any/c)]
                     [df table?]
-                    [ks (or/c (listof symbol?) #f) #f])
+                    [ks (or/c (list/c symbol? symbol? ...) #f) #f])
       table?]{
  Provided an optional list of columns, pass a list of those columns to @racket[proc] for every row in @racket[df] and return a lazy sequence of results. If @racket[ks] is @racket[#f] then all columns are used.
 }
 
 @defproc[(table-apply [proc procedure?]
                       [df table?]
-                      [ks (or/c (listof symbol?) #f) #f])
+                      [ks (or/c (list/c symbol? symbol? ...) #f) #f])
       table?]{
  Like @racket[table-map], but applies each list of column values to @racket[proc].
 }
 
 @defproc[(table-filter [proc procedure?]
                        [df table?]
-                       [ks (or/c (listof symbol?) #f) #f])
+                       [ks (or/c (list/c symbol? symbol? ...) #f) #f])
       table?]{
  Like @racket[table-apply], but the resulting sequence is used for a @racket[table-select]. A new table is returned.
 }
 
 @defproc[(table-drop-na [df table?]
-                        [ks (or/c (listof symbol?) #f) #f])
+                        [ks (or/c (list/c symbol? symbol? ...) #f) #f])
       table?]{
  Returns a new table with all rows dropped that have missing values among the columns specified in @racket[ks] (or any column if @racket[ks] is @racket[#f]).
 }
@@ -257,16 +262,40 @@ It is important to note that - when reading tables - columns that don't already 
 }
 
 @defproc[(table-sort [df table?]
-                     [ks (or/c (listof symbol?) #f) #f]
+                     [ks (or/c (list/c symbol? symbol? ...) #f) #f]
                      [less-than? (any/c any/c -> boolean?) sort-ascending]) table?]{
  Returns a new table with the index of @racket[df] sorted by the columns @racket[ks] (or all columns if @racket[#f]) sorted by @racket[less-than?]. By default, it will sort in ascending order using a custom sorting predicate.
 }
 
 @defproc[(table-distinct [df table?]
-                         [ks (or/c (listof symbol?) #f) #f]
+                         [ks (or/c (list/c symbol? symbol? ...) #f) #f]
                          [keep (or/c 'first 'last 'none) 'first])
          table?]{
  Returns a new table removing duplicate rows where all the columns specified in @racket[ks] are @racket[equal?].
+}
+
+@defproc[(table-join/inner [df table?]
+                           [other table?]
+                           [on (list/c symbol? symbol? ...)]
+                           [less-than? (any/c any/c -> boolean?) sort-ascending]
+                           [#:with with (list/c symbol? symbol? ...) on])
+         table?]{
+ Performs an INNER join of @racket[df] and @racket[other], joining the columns where the @racket[on] and @racket[with] columns are @racket[equal?] between the two tables and returns the new table.
+}
+
+@defproc[(table-join/outer [df table?]
+                           [other table?]
+                           [on (list/c symbol? symbol? ...)]
+                           [less-than? (any/c any/c -> boolean?) sort-ascending]
+                           [#:with with (list/c symbol? symbol? ...) on])
+         table?]{
+ Performs an LEFT OUTER join of @racket[df] and @racket[other], joining the columns where the @racket[on] and @racket[with] columns are @racket[equal?] between the two tables and returns the new table.
+}
+
+@defproc[(table-group [df table?]
+                         [by (list/c symbol? symbol? ...)])
+         group?]{
+ Creates and returns an aggregation group using the @racket[by] columns of the input table.
 }
 
 
@@ -332,6 +361,18 @@ It is important to note that - when reading tables - columns that don't already 
                       [less-than? ((any/c any/c) -> boolean?) sort-ascending]) column?]{
  Returns a new column that shares data with @racket[col], but with the index sorted by the data values.
 }
+
+
+@;; ----------------------------------------------------
+@section{Groups}
+
+@defstruct[group ([table table?]
+                  [by (list/c symbol? symbol? ...)]
+                  [index index?])]{
+ Constructor for a new group. The @racket[table] is the data source for the @racket[index], and the @racket[by] member are the columns being grouped (the index keys).
+}
+
+
 
 @;; ----------------------------------------------------
 @section{Indexes}
@@ -423,8 +464,3 @@ It is important to note that - when reading tables - columns that don't already 
 @defproc[(index-mode [ix index?]) (or/c any/c #f)]{
  Returns @racket[#f] if the index is empty, otherwise returns the key that occurs the most often.
 }
-
-
-@;; ----------------------------------------------------
-@section{Groups}
-

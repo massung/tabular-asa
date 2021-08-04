@@ -228,7 +228,7 @@ All rights reserved.
 ;; ----------------------------------------------------
 
 (define (table-drop-na df [ks #f])
-  (table-select df (sequence-map all? (if ks (table-cut df ks) df))))
+  (table-select df (sequence-map (λ (i row) (all? row)) (if ks (table-cut df ks) df))))
 
 ;; ----------------------------------------------------
 

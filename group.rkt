@@ -41,7 +41,7 @@ All rights reserved.
 
 ;; ----------------------------------------------------
 
-(define (group-table/by df by)
+(define (table-group df by)
   (match by
     [(list k)
      (let ([col (table-column df k)])
@@ -60,7 +60,7 @@ All rights reserved.
                ([(key indices) (group-index g)])
       (cons key (for/fold ([xs xs-init] #:result (map result xs))
                           ([i indices])
-                  (map proc xs (cdr (table-row (group-table g) i))))))))
+                  (map proc xs (table-row (group-table g) i)))))))
 
 ;; ----------------------------------------------------
 
@@ -165,7 +165,7 @@ All rights reserved.
                                      '(bird length wingspan)))
 
   ; group by bird
-  (define g (group-table/by birds '(bird)))
+  (define g (table-group birds '(bird)))
 
   ; TODO:
   )
