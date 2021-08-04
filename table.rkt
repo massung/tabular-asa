@@ -158,15 +158,19 @@ All rights reserved.
 ;; ----------------------------------------------------
 
 (define (table-row df n)
-  (let ([i (vector-ref (table-index df) n)])
-    (cons i (table-irow df i))))
+  (table-irow df (vector-ref (table-index df) n)))
 
 ;; ----------------------------------------------------
 
 (define (table-record df n)
   (for/hash ([k (table-data df)]
-             [v (cdr (table-row df n))])
+             [v (table-row df n)])
     (values (car k) v)))
+
+;; ----------------------------------------------------
+
+(define (table-rows df)
+  (sequence-map (λ (i row) row) df))
 
 ;; ----------------------------------------------------
 
@@ -287,7 +291,7 @@ All rights reserved.
   (check-exn exn:fail? (λ () (table-column df 'foo)))
 
   ; check row/record conversion
-  (check-equal? (table-row df 0) '(0 "Jeff" 44 m))
+  (check-equal? (table-row df 0) '("Jeff" 44 m))
   (check-equal? (table-record df 0) #hash((name . "Jeff") (age . 44) (gender . m)))
 
   ; check dropping, cutting and re-ordering of columns

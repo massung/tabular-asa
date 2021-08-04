@@ -22,15 +22,19 @@ All rights reserved.
 
 ;; ----------------------------------------------------
 
-(define (table-remapped df other suffix on drop?)
+(define (table-remapped df other suffix on with)
   (let* ([other-columns (table-column-names other)]
+
+         ; columns to drop are those that match name and order
+         [drop-columns (for/list ([k-on on] [k-with with] #:when (eq? k-on k-with))
+                         k-on)]
 
          ; columns existing in other need to be renamed
          [rename-map (for/hash ([k (table-column-names df)]
-                                #:when (and (not (equal? k on))
+                                #:when (and (not (memq k on))
                                             (member k other-columns)))
                        (values k (string->symbol (format "~a~a" k suffix))))])
-    (table-with-columns-renamed (if drop? (table-drop df (list on)) df) rename-map)))
+    (table-with-columns-renamed (table-drop df drop-columns) rename-map)))
 
 ;; ----------------------------------------------------
 
@@ -41,15 +45,15 @@ All rights reserved.
                                        (table-column-names right))])])
 
     ; iterate over left table, join with right
-    (for ([(i row) (table-cut left (list on))])
-      (let ([ks (index-member ix (car row))])
+    (for ([(i row) (table-cut left on)])
+      (let ([ks (index-member ix row)])
         (if ks
-            (let ([left-row (cdr (table-row left i))])
+            (let ([left-row (table-row left i)])
               (for ([j (cdr ks)])
-                (let ([right-row (cdr (table-row right j))])
+                (let ([right-row (table-row right j)])
                   (send builder add-row (merge left-row right-row)))))
             (when else
-              (let ([row (else (cdr (table-row left i)))])
+              (let ([row (else (table-row left i))])
                 (send builder add-row row))))))
 
     ; build the table
@@ -58,9 +62,9 @@ All rights reserved.
 ;; ----------------------------------------------------
 
 (define (table-join/inner df other on [less-than? sort-ascending] #:with [with on])
-  (let ([left (table-remapped df other "-x" on #f)]
-        [right (table-remapped other df "-y" with (eq? on with))]
-        [ix (build-index (table-column other with) less-than?)])
+  (let ([left (table-remapped df other "-x" on '())]
+        [right (table-remapped other df "-y" with on)]
+        [ix (build-index (table-rows (table-cut other with)) less-than?)])
     (table-join left
                 right
                 on
@@ -70,9 +74,9 @@ All rights reserved.
 ;; ----------------------------------------------------
 
 (define (table-join/outer df other on [less-than? sort-ascending] #:with [with on])
-  (let ([left (table-remapped df other "-x" on #f)]
-        [right (table-remapped other df "-y" with (eq? on with))]
-        [ix (build-index (table-column other with) less-than?)])
+  (let ([left (table-remapped df other "-x" on '())]
+        [right (table-remapped other df "-y" with on)]
+        [ix (build-index (table-rows (table-cut other with)) less-than?)])
     (table-join left
                 right
                 on
@@ -106,8 +110,8 @@ All rights reserved.
       (send builder build)))
 
   ; join inner and outer
-  (define inner (table-join/inner people jobs 'name))
-  (define outer (table-join/outer people jobs 'name))
+  (define inner (table-join/inner people jobs '(name)))
+  (define outer (table-join/outer people jobs '(name)))
   
   ; verify join results
   (check-equal? (sequence->list (table-column inner 'title))

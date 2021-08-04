@@ -104,7 +104,10 @@ All rights reserved.
     (newline)
     (fprintf port "[~a rows x ~a cols]"
              (table-length df)
-             (length (table-data df)))))
+             (length (table-data df)))
+
+    ; done
+    (newline)))
 
 ;; ----------------------------------------------------
 
