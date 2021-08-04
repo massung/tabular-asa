@@ -9,8 +9,7 @@ All rights reserved.
 
 |#
 
-;(require tabular-asa)
-(require "../main.rkt")
+(require tabular-asa)
 (require plot)
 (require threading)
 

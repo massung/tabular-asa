@@ -40,10 +40,10 @@ All rights reserved.
 
 ;; ----------------------------------------------------
 
-(define (build-column seq #:name [name #f])
+(define (build-column seq #:as [as #f])
   (let* ([data (for/vector ([x seq]) x)]
          [index (build-vector (vector-length data) identity)])
-    (column (or name (gensym "col")) index data)))
+    (column (or as (gensym "col")) index data)))
 
 ;; ----------------------------------------------------
 
@@ -75,10 +75,10 @@ All rights reserved.
 
 ;; ----------------------------------------------------
 
-(define (column-rename col [name #f])
+(define (column-rename col [as #f])
   (struct-copy column
                col
-               [name (or name (gensym "col"))]))
+               [name (or as (gensym "col"))]))
 
 ;; ----------------------------------------------------
 
@@ -123,7 +123,7 @@ All rights reserved.
   (require rackunit)
 
   ; create a simple column
-  (define c (build-column 5 #:name 'foo))
+  (define c (build-column 5 #:as 'foo))
 
   ; verify the column
   (check-equal? (column-name c) 'foo)
