@@ -23,8 +23,8 @@ All rights reserved.
   #:property prop:sequence
   (λ (df)
     (sequence-map (λ (i)
-                    (for/list ([col (table-data df)])
-                      (vector-ref (cdr col) i)))
+                    (values i (for/list ([col (table-data df)])
+                                (vector-ref (cdr col) i))))
                   (table-index df)))
   
   ; custom printing
@@ -202,19 +202,19 @@ All rights reserved.
 ;; ----------------------------------------------------
 
 (define (table-for-each proc df [ks #f])
-  (sequence-for-each (λ (row)
+  (sequence-for-each (λ (i row)
                        (apply proc row))
                      (if ks (table-cut df ks) df)))
   
 ;; ----------------------------------------------------
 
 (define (table-map proc df [ks #f])
-  (sequence-map proc (if ks (table-cut df ks) df)))
+  (sequence-map (λ (i row) (proc row)) (if ks (table-cut df ks) df)))
 
 ;; ----------------------------------------------------
 
 (define (table-apply proc df [ks #f])
-  (table-map (λ (row) (apply proc row)) df ks))
+  (sequence-map (λ (i row) (apply proc row)) (if ks (table-cut df ks) df)))
 
 ;; ----------------------------------------------------
 
@@ -250,7 +250,7 @@ All rights reserved.
   (let ([h (make-hash)])
     (for ([i (table-index df)]
           [n (in-naturals)]
-          [r (if ks (table-cut df ks) df)])
+          [(_ r) (if ks (table-cut df ks) df)])
       (case keep
         [(first) (hash-ref! h r (cons n i))]
         [(last)  (hash-set! h r (cons n i))]

@@ -41,18 +41,16 @@ All rights reserved.
                                        (table-column-names right))])])
 
     ; iterate over left table, join with right
-    (for ([row (table-cut left (list on))])
-      (match row
-        [(list i x)
-         (let ([ks (index-member ix x)])
-           (if ks
-               (let ([left-row (cdr (table-row left i))])
-                 (for ([j (cdr ks)])
-                   (let ([right-row (cdr (table-row right j))])
-                     (send builder add-row (merge left-row right-row)))))
-               (when else
-                 (let ([row (else (cdr (table-row left i)))])
-                   (send builder add-row row)))))]))
+    (for ([(i row) (table-cut left (list on))])
+      (let ([ks (index-member ix (car row))])
+        (if ks
+            (let ([left-row (cdr (table-row left i))])
+              (for ([j (cdr ks)])
+                (let ([right-row (cdr (table-row right j))])
+                  (send builder add-row (merge left-row right-row)))))
+            (when else
+              (let ([row (else (cdr (table-row left i)))])
+                (send builder add-row row))))))
 
     ; build the table
     (send builder build)))
