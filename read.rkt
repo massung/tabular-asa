@@ -42,9 +42,14 @@ All rights reserved.
     (define n initial-size)
     (define i 0)
 
+    ; an infinite sequence of generated column names
+    (define new-columns (sequence-map (λ (_) (gensym "col")) (in-naturals)))
+
     ; create a new column
     (define/public (add-column name)
-      (let ([column-name (string->symbol (~a name))])
+      (let ([column-name (if (symbol? name)
+                             name
+                             (string->symbol (~a name)))])
         (set! column-order (append column-order (list column-name))))
       (make-vector n #f))
 
@@ -65,25 +70,29 @@ All rights reserved.
         ; increase the size of the table
         (set! n (+ n n))))
 
+    ; append a value to a column
+    (define/private (column-set! k x)
+      (let ([v (hash-ref! column-data k (λ () (add-column k)))])
+        (vector-set! v i x)))
+
     ; append a record
     (define/public (add-record record)
       (for ([(k x) record])
-        (let ([v (hash-ref! column-data k (λ () (add-column k)))])
-          (vector-set! v i x)))
+        (column-set! k x))
       (grow-table))
     
     ; append a row
     (define/public (add-row xs [ks #f])
-      (for ([k (or ks column-order)] [x xs])
-        (let ([v (hash-ref! column-data k (λ () (add-column k)))])
-          (vector-set! v i x)))
+      (for ([k (sequence-append (or ks column-order) new-columns)] [x xs])
+        (column-set! k x))
       (grow-table))
 
     ; build the final table
     (define/public (build)
       (table (build-vector i identity)
              (for/list ([k column-order])
-               (cons k (vector-take (hash-ref column-data k) i)))))))
+               (let ([v (hash-ref column-data k)])
+                 (cons k (vector-take v i))))))))
 
 ;; ----------------------------------------------------
 
@@ -120,7 +129,10 @@ All rights reserved.
          [first-row (next-row)]
 
          ; create a list of column names/indices
-         [columns (if header first-row (range (length first-row)))]
+         [columns (if header
+                      first-row
+                      (for/list ([_ first-row])
+                        (gensym "col")))]
 
          ; parse cells, look for n/a as well
          [parse-row (λ (r)

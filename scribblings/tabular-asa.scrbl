@@ -70,43 +70,50 @@ For the purposes of this documentation and function names, a row is defined as a
 @;; ----------------------------------------------------
 @section{Reading Tables}
 
-@defproc[(table-read/sequence [seq (or/c (sequence/c list?)
-                                         (sequence/c hash-eq?))]
-                              [columns (sequence/c symbol?) '()])
+It is important to note that - when reading tables - columns that don't already exist will be generated on-demand. The column names will be equivelant to calling @racket[(gensym "col")] to ensure they are unique symbols.
+
+@defproc[(table-read/sequence [seq (or/c (listof any/c)
+                                         (sequenceof hash-eq?))]
+                              [columns (sequenceof symbol?) '()])
          table?]{
  Creates and returns a new @racket[table] from either a sequence of rows or a sequence of records.
 }
 
 @defproc[(table-read/jsexpr [jsexpr jsexpr?]) table?]{
- Given a @racket[jsexpr?] object that is either a list of @racket[jsexpr?] objects or a hash of column values, create and return a new table from the data in the JSON.
+ Given a @racket[jsexpr?], use the shape of the object to determine how it should be transformed into a table.
+
+ If @racket[jsexpr] is a JSON object (@racket[hash-eq?]), then it is assumed to be a 
 }
 
 @defproc[(table-read/csv [port input-port?]
                          [#:header? header boolean? #t]
                          [#:separator-char sep char? #\,]
-                         [#:newline newline 'lax]
                          [#:quote-char quote char? #\"]
                          [#:double-quote? double-quote char? #t]
                          [#:comment-char comment char? #\#]
                          [#:strip? strip boolean? #f]
-                         [#:na na any #f]
-                         [#:na-values na-values list? (list "" "." "na" "n/a" "nan" "null")])
+                         [#:na na any/c #f]
+                         [#:na-values na-values (listof string?) (list "" "." "na" "n/a" "nan" "null")])
          table?]{
- Reads the data in @racket[port] as a CSV file using the options specified and returns a new @racket[table].
+ Reads the data in @racket[port] as a CSV file using the options specified and returns a new @racket[table]. Most of the arguments are used for parsing the CSV.
+
+ The @racket[header] argument - if @racket[#t] - indicates that the first non-comment row of the CSV should be treated as the list of column names. If false then the column names will be generated as needed.
+
+ The @racket[na-values] argument is a list of strings that - when parsed as the value for a given cell - are replaced with the @racket[na] value to indicate N/A (not available). The values in this list are case-insensitive.
 }
 
 @defproc[(table-read/json [port input-port?]
-                          [#:orient orient (or/c 'columns 'records) 'records]
                           [#:lines? lines boolean? #f])
          table?]{
+ Reads the data in @racket[port] as a JSON value. If @racket[lines] is @racket[#t] then the @racket[port] is read line-by-line and assumed to be a JSON object (@racket[hash-eq?]) corresponding to a single record of the resulting table. Otherwise the entire JSON object is read into memory and passed to @racket[table-read/jsexpr].
 }
 
 
 @;; ----------------------------------------------------
 @section{Tables}
 
-@defstruct[table ([index (vector/c exact-nonnegative-integer?)]
-                  [data (list/c (cons/c symbol? (vector/c any/c)))])]{
+@defstruct[table ([index (vectorof exact-nonnegative-integer?)]
+                  [data (listof (cons/c symbol? (vectorof any/c)))])]{
  The constructor for a new table structure. There should almost never be a need to call this directly as opposed to using one of the table-read/* functions to load a table from another container or a port.
 
  All tables are also sequences and can be iterated using @racket[for], where each iteration returns the next row (list). For example:
@@ -135,11 +142,11 @@ For the purposes of this documentation and function names, a row is defined as a
  Returns @racket[#t] if there are no rows or no columns in the table.
 }
 
-@defproc[(table-columns [df table?]) (list/c column?)]{
+@defproc[(table-columns [df table?]) (listof column?)]{
  Returns a list of columns containing all the data in the table.
 }
 
-@defproc[(table-column-names [df table?]) (list/c symbol?)]{
+@defproc[(table-column-names [df table?]) (listof symbol?)]{
  Returns a list of symbols, which are the column names of the table.
 }
 
@@ -150,13 +157,13 @@ For the purposes of this documentation and function names, a row is defined as a
 @defproc[(table-with-column [df table?] 
                             [data sequence?] 
                             [#:as as (or/c symbol? #f) #f]) 
-      table?]{
+         table?]{
  Returns a new table with either the column data added or replaced if @racket[as] is the same name as an existing column. If no column name is provided then a new column name is generated for it.
 }
 
 @defproc[(table-with-columns-renamed [df table?] 
                                      [rename-map hash-eq?]) 
-      table?]{
+         table?]{
  Returns a new table with the columns in @racket[rename-map] renamed. Example:
 
  @racketblock{
@@ -165,38 +172,38 @@ For the purposes of this documentation and function names, a row is defined as a
 }
 
 @defproc[(table-cut [df table?] 
-                    [ks (list/c symbol?)]) 
-      table?]{
+                    [ks (listof symbol?)]) 
+         table?]{
  Returns a new table with only the columns @racket[ks].
 }
 
 @defproc[(table-drop [df table?] 
-                     [ks (list/c symbol?)]) 
-      table?]{
+                     [ks (listof symbol?)]) 
+         table?]{
  Returns a new table with the columns @racket[ks] removed.
 }
 
 @defproc[(table-irow [df table?] 
                      [i exact-nonnegative-integer?]) 
-      (list/c any)]{
+         (listof any/c)]{
  Given an index position, return a row (list) of the values in the columns at that position. An index position is the exact index into the column data the table references. This is usually not what you want, but can be useful in some situations.
 }
 
 @defproc[(table-row [df table?] 
                     [i exact-nonnegative-integer?]) 
-      (list/c any)]{
+         (list/c any/c)]{
  Given an reference position, return a row (list) of the values in the columns at that position. A reference position is similar to @racket[vector-ref] or @racket[list-ref]: it is the zero-based, nth row within the table.
 }
 
 @defproc[(table-record [df table?] 
                        [i exact-nonnegative-integer?]) 
-      hash-eq?]{
+         hash-eq?]{
  Given an reference position, return a record (hash) of the columns and values for that row.
 }
 
 @defproc[(table-records [df table?] 
                         [i exact-nonnegative-integer?]) 
-      (sequence/c hash-eq?)]{
+         (sequenceof hash-eq?)]{
  Iterates over the table, returning a record (hash) for each row.
 }
 
@@ -213,34 +220,34 @@ For the purposes of this documentation and function names, a row is defined as a
 }
 
 @defproc[(table-select [df table?] 
-                       [flags (sequence/c any/c)]) 
+                       [flags (sequenceof any/c)]) 
       table?]{
  Given a sequence of boolean values, filters the rows of @racket[df] and returns a new table. Use @racket[table-filter] to filter using a predicate function.
 }
 
-@defproc[(table-map [proc ((list/c any/c) -> any/c)]
+@defproc[(table-map [proc ((listof any/c) -> any/c)]
                     [df table?]
-                    [ks (or/c (list/c symbol?) #f) #f])
+                    [ks (or/c (listof symbol?) #f) #f])
       table?]{
  Provided an optional list of columns, pass a list of those columns to @racket[proc] for every row in @racket[df] and return a lazy sequence of results. If @racket[ks] is @racket[#f] then all columns are used.
 }
 
 @defproc[(table-apply [proc procedure?]
                       [df table?]
-                      [ks (or/c (list/c symbol?) #f) #f])
+                      [ks (or/c (listof symbol?) #f) #f])
       table?]{
  Like @racket[table-map], but applies each list of column values to @racket[proc].
 }
 
 @defproc[(table-filter [proc procedure?]
                        [df table?]
-                       [ks (or/c (list/c symbol?) #f) #f])
+                       [ks (or/c (listof symbol?) #f) #f])
       table?]{
  Like @racket[table-apply], but the resulting sequence is used for a @racket[table-select]. A new table is returned.
 }
 
 @defproc[(table-drop-na [df table?]
-                        [ks (or/c (list/c symbol?) #f) #f])
+                        [ks (or/c (listof symbol?) #f) #f])
       table?]{
  Returns a new table with all rows dropped that have missing values among the columns specified in @racket[ks] (or any column if @racket[ks] is @racket[#f]).
 }
@@ -250,13 +257,13 @@ For the purposes of this documentation and function names, a row is defined as a
 }
 
 @defproc[(table-sort [df table?]
-                     [ks (or/c (list/c symbol?) #f) #f]
+                     [ks (or/c (listof symbol?) #f) #f]
                      [less-than? (any/c any/c -> boolean?) sort-ascending]) table?]{
  Returns a new table with the index of @racket[df] sorted by the columns @racket[ks] (or all columns if @racket[#f]) sorted by @racket[less-than?]. By default, it will sort in ascending order using a custom sorting predicate.
 }
 
 @defproc[(table-distinct [df table?]
-                         [ks (or/c (list/c symbol?) #f) #f]
+                         [ks (or/c (listof symbol?) #f) #f]
                          [keep (or/c 'first 'last 'none) 'first])
          table?]{
  Returns a new table removing duplicate rows where all the columns specified in @racket[ks] are @racket[equal?].
@@ -267,8 +274,8 @@ For the purposes of this documentation and function names, a row is defined as a
 @section{Columns}
 
 @defstruct[column ([name symbol?]
-                   [index (vector/c exact-nonnegative-integer?)]
-                   [data (vector/c any/c)])]{
+                   [index (vectorof exact-nonnegative-integer?)]
+                   [data (vectorof any/c)])]{
  The constructor for a new column. There should almost never be a need to call this directly as opposed to having one created for you using the @racket[table-column] function, which shares the same index and data values for the table. All columns are also sequences and can be iterated using @racket[for].
 }
 
@@ -276,7 +283,7 @@ For the purposes of this documentation and function names, a row is defined as a
  The immutable empty column.
 }
 
-@defproc[(build-column [data (sequence/c any/c)]
+@defproc[(build-column [data (sequenceof any/c)]
                        [#:as as (or/c symbol? #f) #f])
          column?]{
  Builds a new column with the values in @racket[data]. The data is copied and a new index is built for the column. If @racket[#:as] is @racket[#f] then a unique column name will be generated for it.
@@ -329,12 +336,12 @@ For the purposes of this documentation and function names, a row is defined as a
 @;; ----------------------------------------------------
 @section{Indexes}
 
-@defstruct[index ([keys (vector/c (list/c any/c exact-nonnegative-integer? ...))]
+@defstruct[index ([keys (vectorof (list/c any/c exact-nonnegative-integer? ...))]
                   [less-than? (or/c ((any/c any/c) -> boolean?) #f)])]{
  Constructor for a new index. The @racket[keys] are a sorted vector of lists, where the first element of the list is the key value and the rest of the list are indices. The @racket[less-than?] predicate is the same as was used to sort @racket[keys] before passing them in.
 }
 
-@defproc[(build-index [data (sequence/c any/c)]
+@defproc[(build-index [data (sequenceof any/c)]
                       [less-than? (or/c ((any/c any/c) -> boolean?) #f) sort-ascending])
          index?]{
  Creates a new index by finding all the unique keys in the @racket[data] sequence along with the ordered indices where they keys are located, then sorts them using the @racket[less-than?] predicate if defined. If the @racket[less-than?] predicate function is @racket[#f] then no sorting takes place and the keys are in a random order.
@@ -394,7 +401,7 @@ For the purposes of this documentation and function names, a row is defined as a
 }
 
 @defproc[(index-map [ix index?]
-                    [v (vector/c any/c)]
+                    [v (vectorof any/c)]
                     [#:from from any/c #f]
                     [#:to to any/c #f])
          sequence?]{
