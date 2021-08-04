@@ -223,13 +223,8 @@ All rights reserved.
 
 ;; ----------------------------------------------------
 
-(define (table-take pred df [ks #f])
-  (struct-copy table
-               df
-               [index (for/vector ([i (table-index df)]
-                                   [row (if ks (table-cut df ks) df)]
-                                   #:break (not (apply pred row)))
-                        i)]))
+(define (table-drop-na df [ks #f])
+  (table-select df (sequence-map all? (if ks (table-cut df ks) df))))
 
 ;; ----------------------------------------------------
 
@@ -237,11 +232,6 @@ All rights reserved.
   (struct-copy table
                df
                [index (vector-reverse (table-index df))]))
-
-;; ----------------------------------------------------
-
-(define (table-drop-na df [ks #f])
-  (table-select df (sequence-map all? (if ks (table-cut df ks) df))))
 
 ;; ----------------------------------------------------
 

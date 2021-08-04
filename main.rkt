@@ -86,9 +86,9 @@ All rights reserved.
  table-apply
  table-filter
  table-drop-na
+ table-reverse
  table-sort
  table-distinct
- table-reverse
 
  ; join
  table-join/inner
