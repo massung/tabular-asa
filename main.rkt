@@ -11,9 +11,9 @@ All rights reserved.
 
 (require "column.rkt")
 (require "for.rkt")
-(require "group.rkt")
 (require "index.rkt")
 (require "join.rkt")
+(require "group.rkt")
 (require "orderable.rkt")
 (require "print.rkt")
 (require "read.rkt")
@@ -85,17 +85,18 @@ All rights reserved.
  table-map
  table-apply
  table-filter
+ table-fold
  table-drop-na
  table-reverse
  table-sort
  table-distinct
- table-group
 
  ; join
  table-join/inner
  table-join/outer
 
  ; group
+ table-groupby
  group-fold
  group-count
  group-min

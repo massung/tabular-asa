@@ -19,7 +19,7 @@ All rights reserved.
 (define books (call-with-input-file "books.csv" table-read/csv))
 
 ; pick a random title per genre
-(group-sample (table-group books '(Genre)))
+(group-sample (table-groupby books '(Genre)))
 
 ; find the longest books by publisher
 (~> books 
@@ -31,7 +31,7 @@ All rights reserved.
 (let ([df (~> books
               (table-cut '(Author Publisher))
               (table-drop-na)
-              (table-group '(Author))
+              (table-groupby '(Author))
               (group-unique))])
   (table-select df (table-apply (λ~> length (> 1)) df '(Publisher))))
 
@@ -44,7 +44,7 @@ All rights reserved.
 ; plot how many books there are per genre
 (let ([df (~> books
               (table-cut '(Genre Title))
-              (table-group '(Genre))
+              (table-groupby '(Genre))
               (group-count))])
   (plot (discrete-histogram (for/list ([x (table-column df 'Genre)]
                                        [y (table-column df 'Title)])

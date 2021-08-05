@@ -377,7 +377,7 @@ It is important to note that - when reading tables - columns that don't already 
 @;; ----------------------------------------------------
 @section{Indexes}
 
-@defstruct[index ([keys (vectorof (list/c any/c exact-nonnegative-integer? ...))]
+@defstruct[index ([keys (vectorof (cons/c any/c (vectorof exact-nonnegative-integer?)))]
                   [less-than? (or/c ((any/c any/c) -> boolean?) #f)])]{
  Constructor for a new index. The @racket[keys] are a sorted vector of lists, where the first element of the list is the key value and the rest of the list are indices. The @racket[less-than?] predicate is the same as was used to sort @racket[keys] before passing them in.
 }

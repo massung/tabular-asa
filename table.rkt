@@ -10,6 +10,7 @@ All rights reserved.
 |#
 
 (require "column.rkt")
+(require "index.rkt")
 (require "orderable.rkt")
 (require "utils.rkt")
 
@@ -68,7 +69,7 @@ All rights reserved.
 (define (table-with-index df index)
   (struct-copy table
                df
-               [index index]))
+               [index (for/vector ([i index]) i)]))
 
 ;; ----------------------------------------------------
 
@@ -224,6 +225,19 @@ All rights reserved.
 
 (define (table-filter pred df [ks #f])
   (table-select df (table-apply pred df ks)))
+
+;; ----------------------------------------------------
+
+(define (table-fold proc init df [result identity])
+  (table #(0) (for/list ([k (table-data df)]
+                         [x (sequence-fold (λ (acc row)
+                                             (for/list ([x acc]
+                                                        [y row])
+                                               (proc x y)))
+                                           (map (const init)
+                                                (table-data df))
+                                           (table-rows df))])
+                (cons (car k) (vector (result x))))))
 
 ;; ----------------------------------------------------
 

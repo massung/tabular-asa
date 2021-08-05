@@ -23,44 +23,47 @@ All rights reserved.
 
 ;; ----------------------------------------------------
 
-(struct group [table by index]
+(struct group [tables columns index]
   #:property prop:sequence
-  (λ (g) 
-    (let ([df (group-table g)])
-      (sequence-map (λ (key indices)
-                      (values key (table-with-index df (list->vector indices))))
-                    (group-index g))))
+  (λ (g)
+    (let ([keys (sequence-map (λ (key _) key) (group-index g))])
+      (in-parallel keys (group-tables g))))
   
   #:methods gen:custom-write
   [(define write-proc
      (λ (g port mode)
-       (fprintf port "#<group by ~a [~a rows x ~a cols]>"
-                (group-by g)
+       (fprintf port "#<group [~a rows x ~a cols]>"
                 (index-length (group-index g))
-                (add1 (length (table-data (group-table g)))))))])
+                (length (group-columns g)))))])
 
 ;; ----------------------------------------------------
 
-(define (table-group df by)
-  (match by
-    [(list k)
-     (let ([col (table-column df k)])
-       (group (table-drop df by) k (build-index col #f)))]
-    [(list k ks ...)
-     (group (table-drop df by)
-            by
-            (build-index (sequence-map cdr (table-cut df by)) #f))]))
+(define (table-groupby df by #:as [as #f])
+  (let* ([cf (table-drop df by)]
 
+         ; key column
+         [key (string->symbol (string-join (map ~a by) "-"))]
+
+         ; values to partition by
+         [seq (if (empty? (cdr by))
+                  (table-column df (car by))
+                  (table-rows (table-cut df by)))]
+
+         ; create an unsorted index
+         [ix (build-index seq #f)]
+
+         ; generate the resulting tables    
+         [tables (sequence-map (λ (k i) (table-with-index cf i)) ix)])
+    (group tables (cons (or as key) (table-column-names cf)) ix)))
+  
 ;; ----------------------------------------------------
 
-(define (group-fold proc init g #:result [result identity])
-  (let* ([xs-columns (table-column-names (group-table g))]
-         [xs-init (map (const init) xs-columns)])
-    (for/table ([columns (cons (group-by g) xs-columns)])
-               ([(key indices) (group-index g)])
-      (cons key (for/fold ([xs xs-init] #:result (map result xs))
-                          ([i indices])
-                  (map proc xs (table-row (group-table g) i)))))))
+(define (group-fold proc init g [result identity])
+  (let ([ix (group-index g)])
+    (for/table ([initial-size (index-length ix)]
+                [columns (group-columns g)])
+               ([(key df) g])
+      (cons key (table-row (table-fold proc init df result) 0)))))
 
 ;; ----------------------------------------------------
 
@@ -70,12 +73,12 @@ All rights reserved.
 ;; ----------------------------------------------------
 
 (define (group-min g [less-than? sort-ascending])
-  (group-fold (λ (a b) (if (or (not a) (less-than? a b)) a b)) #f g))
+  (group-fold (λ (a b) (if (or (not b) (less-than? a b)) a b)) #f g))
 
 ;; ----------------------------------------------------
 
-(define (group-max g [less-than? sort-ascending])
-  (group-fold (λ (a b) (if (or (not a) (less-than? a b)) b a)) #f g))
+(define (group-max g [greater-than? sort-descending])
+  (group-fold (λ (a b) (if (or (not a) (greater-than? b a)) b a)) #f g))
 
 ;; ----------------------------------------------------
 
@@ -86,7 +89,7 @@ All rights reserved.
                  [(not a) (list b 1)]
                  [else    (list (+ (first a) b)
                                 (+ (second a) 1))]))])
-    (group-fold agg #f g #:result (λ (pair) (apply / pair)))))
+    (group-fold agg #f g (λ (pair) (apply / pair)))))
 
 ;; ----------------------------------------------------
 
@@ -124,7 +127,7 @@ All rights reserved.
                (if (not b)
                    a
                    (set-add a b)))])
-    (group-fold agg (set) g #:result set->list)))
+    (group-fold agg (set) g set->list)))
 
 ;; ----------------------------------------------------
 
@@ -144,7 +147,7 @@ All rights reserved.
                      [(cons x n)
                       (let ([m (add1 n)])
                         (cons (if (zero? (random m)) b x) m))])))])
-    (group-fold agg (cons #f 0) g #:result car)))
+    (group-fold agg (cons #f 0) g car)))
 
 ;; ----------------------------------------------------
 
@@ -165,7 +168,7 @@ All rights reserved.
                                      '(bird length wingspan)))
 
   ; group by bird
-  (define g (table-group birds '(bird)))
+  (define g (table-groupby birds '(bird)))
 
   ; TODO:
   )
