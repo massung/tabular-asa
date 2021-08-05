@@ -177,13 +177,13 @@ It is important to note that - when reading tables - columns that don't already 
 }
 
 @defproc[(table-cut [df table?] 
-                    [ks (list/c symbol? symbol? ...)]) 
+                    [ks (non-empty-listof symbol?)]) 
          table?]{
  Returns a new table with only the columns @racket[ks].
 }
 
 @defproc[(table-drop [df table?] 
-                     [ks (list/c symbol? symbol? ...)]) 
+                     [ks (non-empty-listof symbol?)]) 
          table?]{
  Returns a new table with the columns @racket[ks] removed.
 }
@@ -232,27 +232,42 @@ It is important to note that - when reading tables - columns that don't already 
 
 @defproc[(table-map [proc ((listof any/c) -> any/c)]
                     [df table?]
-                    [ks (or/c (list/c symbol? symbol? ...) #f) #f])
+                    [ks (or/c (non-empty-listof symbol?) #f) #f])
       table?]{
  Provided an optional list of columns, pass a list of those columns to @racket[proc] for every row in @racket[df] and return a lazy sequence of results. If @racket[ks] is @racket[#f] then all columns are used.
 }
 
 @defproc[(table-apply [proc procedure?]
                       [df table?]
-                      [ks (or/c (list/c symbol? symbol? ...) #f) #f])
+                      [ks (or/c (non-empty-listof symbol?) #f) #f])
       table?]{
  Like @racket[table-map], but applies each list of column values to @racket[proc].
 }
 
 @defproc[(table-filter [proc procedure?]
                        [df table?]
-                       [ks (or/c (list/c symbol? symbol? ...) #f) #f])
+                       [ks (or/c (non-empty-listof symbol?) #f) #f])
       table?]{
  Like @racket[table-apply], but the resulting sequence is used for a @racket[table-select]. A new table is returned.
 }
 
+@defproc[(table-fold [proc (any/c any/c -> any/c)]
+                     [i any/c]
+                     [df table?]
+                     [final (any/c -> any/c) identity])
+         table?]{
+ Returns a table with a single row, where each column has been aggregated with @racket[proc], with an initial value of @racket[i]. Optionally, a @racket[final] function can be applied to the result before returning.
+}
+
+@defproc[(table-groupby [df table?]
+                        [ks (non-empty-listof symbol?)]
+                        [less-than? (or/c (any/c any/c -> boolean?) #f) sort-ascending])
+         (sequence/c (listof (list/c symbol? any/c)) table?)]{
+ Creates and returns a sequence of reference indices grouped by the columns in @racket[ks]. Each iteration of the sequence returns two values: an associative list of the group in @racket[(column value)] form and the subtable of all rows for that group. If @racket[less-than?] is not @racket[#f] then the groups are returned in-order.
+}
+
 @defproc[(table-drop-na [df table?]
-                        [ks (or/c (list/c symbol? symbol? ...) #f) #f])
+                        [ks (or/c (non-empty-listof symbol?) #f) #f])
       table?]{
  Returns a new table with all rows dropped that have missing values among the columns specified in @racket[ks] (or any column if @racket[ks] is @racket[#f]).
 }
@@ -262,13 +277,13 @@ It is important to note that - when reading tables - columns that don't already 
 }
 
 @defproc[(table-sort [df table?]
-                     [ks (or/c (list/c symbol? symbol? ...) #f) #f]
+                     [ks (or/c (non-empty-listof symbol?) #f) #f]
                      [less-than? (any/c any/c -> boolean?) sort-ascending]) table?]{
  Returns a new table with the index of @racket[df] sorted by the columns @racket[ks] (or all columns if @racket[#f]) sorted by @racket[less-than?]. By default, it will sort in ascending order using a custom sorting predicate.
 }
 
 @defproc[(table-distinct [df table?]
-                         [ks (or/c (list/c symbol? symbol? ...) #f) #f]
+                         [ks (or/c (non-empty-listof symbol?) #f) #f]
                          [keep (or/c 'first 'last 'none) 'first])
          table?]{
  Returns a new table removing duplicate rows where all the columns specified in @racket[ks] are @racket[equal?].
@@ -276,26 +291,20 @@ It is important to note that - when reading tables - columns that don't already 
 
 @defproc[(table-join/inner [df table?]
                            [other table?]
-                           [on (list/c symbol? symbol? ...)]
+                           [on (non-empty-listof symbol?)]
                            [less-than? (any/c any/c -> boolean?) sort-ascending]
-                           [#:with with (list/c symbol? symbol? ...) on])
+                           [#:with with (non-empty-listof symbol?) on])
          table?]{
  Performs an INNER join of @racket[df] and @racket[other], joining the columns where the @racket[on] and @racket[with] columns are @racket[equal?] between the two tables and returns the new table.
 }
 
 @defproc[(table-join/outer [df table?]
                            [other table?]
-                           [on (list/c symbol? symbol? ...)]
+                           [on (non-empty-listof symbol?)]
                            [less-than? (any/c any/c -> boolean?) sort-ascending]
-                           [#:with with (list/c symbol? symbol? ...) on])
+                           [#:with with (non-empty-listof symbol?) on])
          table?]{
  Performs an LEFT OUTER join of @racket[df] and @racket[other], joining the columns where the @racket[on] and @racket[with] columns are @racket[equal?] between the two tables and returns the new table.
-}
-
-@defproc[(table-group [df table?]
-                         [by (list/c symbol? symbol? ...)])
-         group?]{
- Creates and returns an aggregation group using the @racket[by] columns of the input table.
 }
 
 
@@ -365,12 +374,6 @@ It is important to note that - when reading tables - columns that don't already 
 
 @;; ----------------------------------------------------
 @section{Groups}
-
-@defstruct[group ([table table?]
-                  [by (list/c symbol? symbol? ...)]
-                  [index index?])]{
- Constructor for a new group. The @racket[table] is the data source for the @racket[index], and the @racket[by] member are the columns being grouped (the index keys).
-}
 
 
 

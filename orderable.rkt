@@ -25,12 +25,20 @@
    [char?
     (define (sort-ascending a b) (or (not b) (char<? a b)))
     (define (sort-descending a b) (or (not b) (char>? a b)))]
+   [symbol?
+    (define (sort-ascending a b) (or (not b) (symbol<? a b)))
+    (define (sort-descending a b) (or (not b) (symbol>? a b)))]
    [sequence?
     (define (sort-ascending a b) (or (not b) (sequence<? a b)))
     (define (sort-descending a b) (or (not b) (sequence>? a b)))]
    [date?
     (define (sort-ascending a b) (or (not b) (< (date*->seconds a) (date*->seconds b))))
     (define (sort-descending a b) (or (not b) (> (date*->seconds a) (date*->seconds b))))]))
+
+;; ----------------------------------------------------
+
+(define (symbol>? a b)
+  (false? (or (eq? a b) (symbol<? a b))))
 
 ;; ----------------------------------------------------
 

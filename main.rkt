@@ -86,6 +86,7 @@ All rights reserved.
  table-apply
  table-filter
  table-fold
+ table-groupby
  table-drop-na
  table-reverse
  table-sort
@@ -96,7 +97,6 @@ All rights reserved.
  table-join/outer
 
  ; group
- table-groupby
  group-fold
  group-count
  group-min

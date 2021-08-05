@@ -9,9 +9,7 @@ All rights reserved.
 
 |#
 
-(require "column.rkt")
 (require "for.rkt")
-(require "index.rkt")
 (require "orderable.rkt")
 (require "read.rkt")
 (require "table.rkt")
@@ -20,50 +18,20 @@ All rights reserved.
 ;; ----------------------------------------------------
 
 (provide (all-defined-out))
-
-;; ----------------------------------------------------
-
-(struct group [tables columns index]
-  #:property prop:sequence
-  (λ (g)
-    (let ([keys (sequence-map (λ (key _) key) (group-index g))])
-      (in-parallel keys (group-tables g))))
-  
-  #:methods gen:custom-write
-  [(define write-proc
-     (λ (g port mode)
-       (fprintf port "#<group [~a rows x ~a cols]>"
-                (index-length (group-index g))
-                (length (group-columns g)))))])
-
-;; ----------------------------------------------------
-
-(define (table-groupby df by #:as [as #f])
-  (let* ([cf (table-drop df by)]
-
-         ; key column
-         [key (string->symbol (string-join (map ~a by) "-"))]
-
-         ; values to partition by
-         [seq (if (empty? (cdr by))
-                  (table-column df (car by))
-                  (table-rows (table-cut df by)))]
-
-         ; create an unsorted index
-         [ix (build-index seq #f)]
-
-         ; generate the resulting tables    
-         [tables (sequence-map (λ (k i) (table-with-index cf i)) ix)])
-    (group tables (cons (or as key) (table-column-names cf)) ix)))
   
 ;; ----------------------------------------------------
 
 (define (group-fold proc init g [result identity])
-  (let ([ix (group-index g)])
-    (for/table ([initial-size (index-length ix)]
-                [columns (group-columns g)])
-               ([(key df) g])
-      (cons key (table-row (table-fold proc init df result) 0)))))
+  (let ([builder (new table-builder%)])
+    (for ([(keys df) g])
+      (let ([row (table-row (table-fold proc init df result) 0)])
+        (send builder
+              add-row
+              (append (map second keys) row)
+              (append (map first keys) (table-column-names df)))))
+
+    ; return the final table
+    (send builder build)))
 
 ;; ----------------------------------------------------
 
@@ -132,10 +100,11 @@ All rights reserved.
 ;; ----------------------------------------------------
 
 (define (group-nunique g)
-  (let ([df (group-unique g)])
-    (for/table ([columns (table-column-names df)])
-               ([row df])
-      (cons (second row) (map length (cddr row))))))
+  (let ([agg (λ (a b)
+               (if (not b)
+                   a
+                   (set-add a b)))])
+    (group-fold agg (set) g set-count)))
 
 ;; ----------------------------------------------------
 

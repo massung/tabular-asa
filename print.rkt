@@ -92,7 +92,7 @@ All rights reserved.
                        (newline port))])
 
     ; write the header
-    (row-format "" (table-column-names df))
+    (row-format '|| (table-column-names df))
 
     ; write all the column previews
     (for ([i (index-preview df)]

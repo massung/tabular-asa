@@ -229,15 +229,26 @@ All rights reserved.
 ;; ----------------------------------------------------
 
 (define (table-fold proc init df [result identity])
-  (table #(0) (for/list ([k (table-data df)]
-                         [x (sequence-fold (λ (acc row)
-                                             (for/list ([x acc]
-                                                        [y row])
-                                               (proc x y)))
-                                           (map (const init)
-                                                (table-data df))
-                                           (table-rows df))])
-                (cons (car k) (vector (result x))))))
+  (table #(0) (map (λ (k x)
+                     (cons k (vector (result x))))
+                   (table-column-names df)
+                   (for/fold ([cols (map (const init) (table-data df))])
+                             ([(i row) df])
+                     (map proc cols row)))))
+
+;; ----------------------------------------------------
+
+(define (table-groupby df ks [less-than? sort-ascending])
+  (let* ([cf (table-drop df ks)]
+
+         ; build an index of just the key columns
+         [ix (build-index (table-rows (table-cut df ks)) less-than?)]
+
+         ; for each key, return an alist and series of indices
+         [group (λ (key indices)
+                  (values (map list ks key)
+                          (table-with-index cf indices)))])
+    (sequence-map group ix)))
 
 ;; ----------------------------------------------------
 
