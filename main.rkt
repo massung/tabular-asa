@@ -27,7 +27,8 @@ All rights reserved.
  ; orderable
  sort-ascending
  sort-descending
-
+ orderable?
+ 
  ; column
  (struct-out column)
  column-length

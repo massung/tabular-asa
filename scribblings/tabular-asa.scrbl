@@ -375,6 +375,65 @@ It is important to note that - when reading tables - columns that don't already 
 @;; ----------------------------------------------------
 @section{Groups}
 
+@defproc[(group-fold [proc (any/c any/c -> any/c)]
+                     [init any/c]
+                     [group (sequence/c (listof (list/c symbol? any/c)) table?)]
+                     [final (any/c -> any/c) identity])
+         table?]{
+ Iterates over every table in the group and calls @racket[table-fold] for each. The result of each fold is appended and returned in a final table of results.
+}
+
+@defproc[(group-count [group (sequence/c (listof (list/c symbol? any/c)) table?)]) table?]{
+ Counts every non @racket[#f] value in each group.
+}
+
+@defproc[(group-min [group (sequence/c (listof (list/c symbol? any/c)) table?)]
+                    [less-than? (any/c any/c -> boolean?) sort-ascending])
+         table?]{
+ Returns the minimum value for each group.
+}
+
+@defproc[(group-max [group (sequence/c (listof (list/c symbol? any/c)) table?)]
+                    [greater-than? (any/c any/c -> boolean?) sort-descending])
+         table?]{
+ Returns the maximum value for each group.
+}
+
+@defproc[(group-mean [group (sequence/c (listof (list/c symbol? any/c)) table?)]) table?]{
+ Sums all non @racket[#f] values and then averages them at the end. The average is of all valid values and across all rows. For example, the mean of the values @racket['(2 #f 4)] is @racket[3] not @racket[2].
+}
+
+@defproc[(group-sum [group (sequence/c (listof (list/c symbol? any/c)) table?)]) table?]{
+ Adds every non @racket[#f] value in each group.
+}
+
+@defproc[(group-product [group (sequence/c (listof (list/c symbol? any/c)) table?)]) table?]{
+ Multiplies every non @racket[#f] value in each group.
+}
+
+@defproc[(group-and [group (sequence/c (listof (list/c symbol? any/c)) table?)]) table?]{
+ If every value is non @racket[#f] then the result is @racket[#t], otherwise @racket[#f].
+}
+
+@defproc[(group-or [group (sequence/c (listof (list/c symbol? any/c)) table?)]) table?]{
+ If any value is non @racket[#f] then the result is @racket[#t], otherwise @racket[#f].
+}
+
+@defproc[(group-list [group (sequence/c (listof (list/c symbol? any/c)) table?)]) table?]{
+ Collects all non @racket[#f] values into a list.
+}
+
+@defproc[(group-unique [group (sequence/c (listof (list/c symbol? any/c)) table?)]) table?]{
+ Collects all non @racket[#f] values into a list, keeping only unique values.
+}
+
+@defproc[(group-nunique [group (sequence/c (listof (list/c symbol? any/c)) table?)]) table?]{
+ Counts all non @racket[#f], unique values. 
+}
+
+@defproc[(group-sample [group (sequence/c (listof (list/c symbol? any/c)) table?)]) table?]{
+ Picks a random value among all the non @racket[#f] values. This uses @hyperlink["https://en.wikipedia.org/wiki/Reservoir_sampling"]{Reservoir Sampling} to ensure the selection is fair and works for arbitrarily large sets. 
+}
 
 
 @;; ----------------------------------------------------
@@ -466,4 +525,34 @@ It is important to note that - when reading tables - columns that don't already 
 
 @defproc[(index-mode [ix index?]) (or/c any/c #f)]{
  Returns @racket[#f] if the index is empty, otherwise returns the key that occurs the most often.
+}
+
+
+@;; ----------------------------------------------------
+@section{Sort Ordering}
+
+All functions that allow for sorting (e.g. @racket[table-sort]) or indexing/grouping take an optional less-than? compare function. Tabular Asa comes with a generic orderable interface with @racket[sort-ascending] and @racket[sort-descending] functions for the following basic types:
+
+@itemlist[
+ @item{Boolean}
+ @item{Number}
+ @item{String}
+ @item{Char}
+ @item{Symbol}
+ @item{Sequence}
+ @item{Date}
+]
+
+Both generic functions will always sort @racket[#f] values last regardless of sort direction.
+
+@defproc[(sort-ascending [a orderable?] [b any/c]) boolean?]{
+ Returns @racket[#t] if @racket[b] is @racket[#f] or @racket[a] < @racket[b].
+}
+
+@defproc[(sort-descending [a orderable?] [b any/c]) boolean?]{
+ Returns @racket[#t] if @racket[b] is @racket[#f] or @racket[a] > @racket[b].
+}
+
+@defproc[(orderable? [x any/c]) boolean?]{
+ Returns @racket[#t] if @racket[x] is a of a type that can ordered using @racket[sort-ascending] or @racket[sort-descending].
 }
