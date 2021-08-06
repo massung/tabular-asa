@@ -32,8 +32,14 @@ All rights reserved.
   #:methods gen:custom-write
   [(define write-proc
      (λ (df port mode)
-       (let-values ([(rows cols) (table-shape df)])
-         (fprintf port "#<table [~a rows x ~a cols]>" rows cols))))])
+       ((table-preview) df port)))])
+
+;; ----------------------------------------------------
+
+(define table-preview
+  (make-parameter (λ (df [port (current-output-port)] #:keep-index? [keep-index #t])
+                    (let-values ([(rows cols) (table-shape df)])
+                      (fprintf port "#<table [~a rows x ~a cols]>" rows cols)))))
 
 ;; ----------------------------------------------------
 
@@ -203,13 +209,6 @@ All rights reserved.
     (struct-copy table
                  df
                  [index (for/vector ([i ix] [x seq] #:when x) i)])))
-
-;; ----------------------------------------------------
-
-(define (table-for-each proc df [ks #f])
-  (sequence-for-each (λ (i row)
-                       (apply proc row))
-                     (if ks (table-cut df ks) df)))
   
 ;; ----------------------------------------------------
 
@@ -223,8 +222,21 @@ All rights reserved.
 
 ;; ----------------------------------------------------
 
+(define (table-for-each proc df [ks #f])
+  (sequence-for-each (λ (i row)
+                       (apply proc row))
+                     (if ks (table-cut df ks) df)))
+
+;; ----------------------------------------------------
+
 (define (table-filter pred df [ks #f])
   (table-select df (table-apply pred df ks)))
+
+;; ----------------------------------------------------
+
+(define (table-update df k proc #:ignore-na [ignore-na #t])
+  (let ([f (λ (x) (and x (proc x)))])
+    (table-with-column df (table-apply f df (list k)) #:as k)))
 
 ;; ----------------------------------------------------
 
@@ -347,6 +359,11 @@ All rights reserved.
     (check-equal? (table-data rdf) '((name . #("Isabel" "Dave"))
                                      (age . #(12 24))
                                      (gender . #(f m)))))
+
+  ; check column updating
+  (let ([rdf (table-update df 'name string-length)])
+    (check-equal? (column-data (table-column rdf 'name))
+                  #(4 6 6 4 3)))
 
   ; check sorting of filtered data
   (let ([rdf (table-sort (table-filter age-filter df '(age)) '(age) sort-descending)])

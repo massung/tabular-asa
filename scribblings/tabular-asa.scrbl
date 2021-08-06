@@ -112,6 +112,7 @@ It is important to note that - when reading tables - columns that don't already 
 
 @defproc[(table-read/csv [port input-port?]
                          [#:header? header boolean? #t]
+                         [#:drop-index? drop-index boolean? #f]
                          [#:separator-char sep char? #\,]
                          [#:quote-char quote char? #\"]
                          [#:double-quote? double-quote char? #t]
@@ -123,6 +124,8 @@ It is important to note that - when reading tables - columns that don't already 
  Reads the data in @racket[port] as a CSV file using the options specified and returns a new @racket[table]. Most of the arguments are used for parsing the CSV.
 
  The @racket[header] argument - if @racket[#t] - indicates that the first non-comment row of the CSV should be treated as the list of column names. If false then the column names will be generated as needed.
+
+ The @racket[drop-index] arugment - if @racket[#t] - assumes that the first column of the CSV is the row index (i.e., an auto-incrementing integer) and shouldn't be kept. If there is a row index column, and it is not dropped, it's important to note that it will be treated just like any other column and is NOT used as the table's index.
 
  The @racket[na-values] argument is a list of strings that - when parsed as the value for a given cell - are replaced with the @racket[na] value to indicate N/A (not available). The values in this list are case-insensitive.
 }
@@ -156,11 +159,22 @@ It is important to note that - when reading tables - columns that don't already 
  An immutable, empty table. Useful for building a table from scratch using @racket[table-with-column] or returning from a function in failure cases, etc.
 }
 
+
+@defparam[table-preview proc (table? output-port? -> void?) #:value procedure?]{
+  Controls how tables are previewed on the REPL. The default function, simply prints the @racket[table-shape] on a single line like so:
+
+  @verbatim|{#<table [359 rows x 8 cols]}|
+
+  However, if you may supply your own function, or even replace it with @racket[display-table] or @racket[print-table] if you always want to see a preview of the table on the REPL.
+}
+
 @defproc[(table-length [df table?]) exact-nonnegative-integer?]{
  Returns the number of rows in the table.
 }
 
-@defproc[(table-shape [df table?]) exact-nonnegative-integer?]{
+@defproc[(table-shape [df table?])
+         (values exact-nonnegative-integer?
+                 exact-nonnegative-integer?)]{
  Returns the number of rows and columns in the table as multiple values.
 }
 
@@ -187,6 +201,10 @@ It is important to note that - when reading tables - columns that don't already 
                             [#:as as (or/c symbol? #f) #f]) 
          table?]{
  Returns a new table with either the column data added or replaced if @racket[as] is the same name as an existing column. If no column name is provided then a new column name is generated for it.
+
+ If the @racket[data] sequence contains fewer elements than there are rows in the table, then the extra rows will be filled with @racket[#f] for the new column. Likewise, if @racket[data] contains more values than there are rows, the extra values will be dropped and not added to the new column.
+
+ It's important to note that the vector for the column generated @italic{will be as large as necessary for it to be indexed properly by the table!} For example, let's say you begin with a table that has 1M rows and filter it, which returns a new table with a single row. If the index of that single row is 999999 (i.e., the last row), then adding a new column will create a vector with 1M entries, all but one of which will contain @racket[#f].
 }
 
 @defproc[(table-with-columns-renamed [df table?] 
@@ -272,6 +290,18 @@ It is important to note that - when reading tables - columns that don't already 
                        [ks (or/c (non-empty-listof symbol?) #f) #f])
       table?]{
  Like @racket[table-apply], but the resulting sequence is used for a @racket[table-select]. A new table is returned.
+}
+
+@defproc[(table-update [df table?]
+                       [k symbol?]
+                       [proc procedure?]
+                       [#:ignore-na ignore-na boolean? #t])
+      table?]{
+ Applies the column @racket[k] to @racket[proc] and returns a new table with the column values replaced. This is similar to:
+
+ @racketblock[(table-with-column df (table-apply proc df (list k)) #:as k)]
+
+ However, if @racket[ignore-na] is @racket[#t] (the default), then all @racket[#f] values are returned as @racket[#f] instead of being updated.
 }
 
 @defproc[(table-fold [proc (any/c any/c -> any/c)]

@@ -13,7 +13,8 @@ All rights reserved.
 (require plot)
 (require threading)
 
-;; helper function for displaying output
+;; always preview tables with display-table
+(table-preview display-table)
 
 ; load a CSV file into a dataframe
 (define books (call-with-input-file "books.csv" table-read/csv))

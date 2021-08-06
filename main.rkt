@@ -63,6 +63,7 @@ All rights reserved.
  ; table
  (struct-out table)
  empty-table
+ table-preview
  table-length
  table-shape
  table-empty?
@@ -86,6 +87,7 @@ All rights reserved.
  table-map
  table-apply
  table-filter
+ table-update
  table-fold
  table-groupby
  table-drop-na

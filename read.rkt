@@ -106,6 +106,7 @@ All rights reserved.
 
 (define (table-read/csv port
                         #:header? [header #t]
+                        #:drop-index? [drop-index #f]
                         #:separator-char [sep #\,]
                         #:newline [newline 'lax]
                         #:quote-char [quote #\"]
@@ -123,7 +124,8 @@ All rights reserved.
                  (strip-trailing-whitespace? . ,strip))]
              
          ; create parser
-         [next-row (make-csv-reader port spec)]
+         [next-row (let ([reader (make-csv-reader port spec)])
+                     (if (not drop-index) reader (compose cdr reader)))]
 
          ; get the first row (optionally the header)
          [first-row (next-row)]
