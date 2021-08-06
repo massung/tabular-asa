@@ -43,9 +43,10 @@ All rights reserved.
 
 ; plot how many books there are per genre
 (let ([df (~> books
-              (table-cut '(Genre Title))
-              (table-groupby '(Genre))
-              (group-count))])
+              (table-drop-na '(Publisher))  ; remove rows with missing publisher
+              (table-cut '(Genre Title))    ; keep only genre and title columns
+              (table-groupby '(Genre))      ; group records by genre
+              (group-count))])              ; aggregate titles by genre
   (parameterize ([plot-x-tick-label-angle 30]
                  [plot-x-tick-label-anchor 'top-right])
     (plot (discrete-histogram (for/list ([x (table-column df 'Genre)]

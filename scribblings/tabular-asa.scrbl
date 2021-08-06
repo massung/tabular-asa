@@ -7,13 +7,36 @@
 
 @defmodule[tabular-asa]
 
-A fast, efficient, dataframes implementation.
+A fast, efficient, immutable, dataframes implementation.
 
 
 @;; ----------------------------------------------------
 @section{Sources}
 
 The source code can be found at @url{https://github.com/massung/tabular-asa}.
+
+
+@;; ----------------------------------------------------
+@section{Quick Example}
+
+This is a brief example of loading a table from a CSV, filtering, grouping, aggregating, and plotting the data. @italic{Note: This example uses @racket[~>] from the @hyperlink["https://docs.racket-lang.org/threading/index.html"]{threading} module for clarity, but Tabular Asa does not require it.}
+
+@racketblock[
+ (define books (call-with-input-file "books.csv" table-read/csv))
+
+ (let ([df (~> books
+               (table-drop-na '(Publisher))
+               (table-cut '(Genre Title))
+               (table-groupby '(Genre))
+               (group-count))])
+   (parameterize ([plot-x-tick-label-angle 30]
+                  [plot-x-tick-label-anchor 'top-right])
+     (plot (discrete-histogram (for/list ([x (table-column df 'Genre)]
+                                          [y (table-column df 'Title)])
+                                 (list x y))))))
+]
+
+@image{test/plot.png}
 
 
 @;; ----------------------------------------------------
@@ -64,7 +87,7 @@ Additionally, tables contain an a vector which is the index of which rows it see
 @;; ----------------------------------------------------
 @section{Row vs. Record}
 
-For the purposes of this documentation and function names, a row is defined as a @racket[list?] and a record is defined as @racket[hash?].
+For the purposes of this documentation and function names, a "row" is defined as a @racket[list?] and a "record" is defined as @racket[hash?].
 
 
 @;; ----------------------------------------------------
@@ -171,9 +194,9 @@ It is important to note that - when reading tables - columns that don't already 
          table?]{
  Returns a new table with the columns in @racket[rename-map] renamed. Example:
 
- @racketblock{
+ @racketblock[
   (table-with-columns-renamed df #hasheq((person . name)))
- }
+ ]
 }
 
 @defproc[(table-cut [df table?] 
@@ -230,7 +253,7 @@ It is important to note that - when reading tables - columns that don't already 
  Given a sequence of boolean values, filters the rows of @racket[df] and returns a new table. Use @racket[table-filter] to filter using a predicate function.
 }
 
-@defproc[(table-map [proc ((listof any/c) -> any/c)]
+@defproc[(table-map [proc ((non-empty-listof any/c) -> any/c)]
                     [df table?]
                     [ks (or/c (non-empty-listof symbol?) #f) #f])
       table?]{
@@ -305,6 +328,76 @@ It is important to note that - when reading tables - columns that don't already 
                            [#:with with (non-empty-listof symbol?) on])
          table?]{
  Performs an LEFT OUTER join of @racket[df] and @racket[other], joining the columns where the @racket[on] and @racket[with] columns are @racket[equal?] between the two tables and returns the new table.
+}
+
+
+@;; ----------------------------------------------------
+@section{Printing Tables}
+
+@defparam[pretty-print-rows rows (or/c exact-nonnegative-integer? #f) #:value 10]{
+  Controls the nmaximum umber of rows output by @racket[write-table]. If set to @racket[#f] then there is no limit and all rows will be printed.
+}
+
+@defproc[(write-table [df table?]
+                      [port output-port? (current-output-port)]
+                      [mode boolean? #t]
+                      [#:keep-index? keep-index boolean? #t])
+         void?]{
+ Pretty prints a maximum of @racket[pretty-print-rows] rows of @racket[df] to @racket[port]. If the table contains more rows then the head and the tail of the table is output. If @racket[keep-index] is @racket[#t] then the index column is also output as well.
+}
+
+@defproc[(print-table [df table?]
+                      [port output-port? (current-output-port)]
+                      [#:keep-index? keep-index boolean? #t])
+         void?]{
+ Calls @racket[write-table] with the mode set to @racket[#t].
+}
+
+@defproc[(display-table [df table?]
+                        [port output-port? (current-output-port)]
+                        [#:keep-index? keep-index boolean? #t])
+         void?]{
+ Calls @racket[write-table] with the mode set to @racket[#f].
+}
+
+
+@;; ----------------------------------------------------
+@section{Writing Tables}
+
+@defproc[(table-write/string [df table?]
+                             [port output-port? (current-output-port)])
+         void?]{
+ Pretty print the entire table to @racket[port] using @racket[display-table], temporarily setting @racket[pretty-print-rows] to @racket[#f] beforehand.
+}
+
+@defproc[(table-write/csv [df table?]
+                          [port output-port? (current-output-port)]
+                          [#:keep-index? keep-index boolean? #t]
+                          [#:header? header boolean? #t]
+                          [#:separator-char sep char? #\,]
+                          [#:quote-char quote char? #\"]
+                          [#:escape-char escape char? #\\]
+                          [#:list-char list-sep char? #\|]
+                          [#:double-quote? double-quote boolean? #t]
+                          [#:na-rep na string? ""]
+                          [#:na-values na-values (listof any/c) '(#f)])
+         void?]{
+ Outputs @racket[df] to @racket[port] in a CSV format.
+}
+
+@defproc[(table-write/json [df table?]
+                           [port output-port? (current-output-port)]
+                           [#:orient orient (or/c 'records 'columns) 'records]
+                           [#:lines? lines boolean? #t]
+                           [#:na-rep na any/c (json-null)])
+         void?]{
+ Outputs @racket[df] to @racket[port] in JSON. 
+ 
+ If @racket[orient] is @racket['records] (the default) then every row of the table is written as an array of JSON objects. If @racket[lines] is @racket[#t] (and @racket[orient] is @racket['records]) then instead of an array, then each row is written as a record on each line.
+
+ If @racket[orient] is @racket['columns] then the table is written as a single JSON object, where each key/value pairing is the column name and an array of values.
+
+ The @racket[na] determines what Racket value in written out as a JSON null.
 }
 
 

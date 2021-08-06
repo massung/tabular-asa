@@ -36,7 +36,6 @@ All rights reserved.
 (define (table-write/csv df
                          [port (current-output-port)]
                          #:keep-index? [keep-index #t]
-                         #:exists [exists-flag 'replace]
                          #:header? [header #t]
                          #:separator-char [sep #\,]
                          #:quote-char [quote #\"]
