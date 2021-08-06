@@ -101,13 +101,13 @@ All rights reserved.
       (row-format i row))
 
     ; output the shape of the table
-    (newline)
+    (newline port)
     (fprintf port "[~a rows x ~a cols]"
              (table-length df)
              (length (table-data df)))
 
     ; done
-    (newline)))
+    (newline port)))
 
 ;; ----------------------------------------------------
 
