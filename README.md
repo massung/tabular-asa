@@ -1,55 +1,54 @@
 # Tabular Asa
 
-A fast, efficient, in-memory, dataframes implementation for [Racket][racket].
+A fast, efficient, in-memory, immutable, dataframes implementation for [Racket][racket].
 
-# Example Usage
+# Quick Example
 
-Here are a few quick examples of Tabular Asa in use.
+This is a brief example of loading a table from a CSV, filtering, grouping, aggregating, and plotting the data. _Note: This example uses `~>` from the [threading][threading] module for clarity, but Tabular Asa does not require it._
 
 ```racket
 (require plot)
 (require tabular-asa)
 (require threading)
 
-; load a CSV file into a dataframe
 (define books (call-with-input-file "books.csv" table-read/csv))
-
-; pick a random title per genre
-(group-sample (group-table/by books '(Genre)))
-
-; find the longest books by publisher
-(~> books 
-    (table-drop-na '(Publisher))
-    (table-sort '(Height) sort-descending)
-    (table-distinct '(Publisher)))
-
-; find all authors using more than one publisher
+ 
 (let ([df (~> books
-              (table-cut '(Author Publisher))
-              (table-drop-na)
-              (group-table/by '(Author))
-              (group-unique))])
-  (table-select df (table-apply (λ~> length (> 1)) df '(Publisher))))
-
-; index the books by author and collect those rows
-(let ([ix (build-index (table-column books 'Author))])
-  (for*/list ([(genre indices) (index-scan-keys ix #:from "Huxley" #:to "M")]
-              [i indices])
-    (table-row books i)))
-
-; plot how many books there are per genre
-(let ([df (~> books
+              (table-drop-na '(Publisher))
               (table-cut '(Genre Title))
-              (group-table/by '(Genre))
+              (table-groupby '(Genre))
               (group-count))])
-  (plot (discrete-histogram (for/list ([x (table-column df 'Genre)]
-                                       [y (table-column df 'Title)])
-                              (list x y)))))
+  (parameterize ([plot-x-tick-label-angle 30]
+                 [plot-x-tick-label-anchor 'top-right])
+    (plot (discrete-histogram (for/list ([x (table-column df 'Genre)]
+                                         [y (table-column df 'Title)])
+                                (list x y))))))
 ```
 
-_NOTE: These examples make use of the [threading][threading] library for clarity of the code, but Tabular Asa doesn't require it as a dependency._
+The above should produce a image plot like this:
+
+![](test/plot.png)
+
+# Installation
+
+Installing should be as simple as using `raco` from the command line:
+
+```zsh
+% raco pkg install tabular-asa
+```
+
+After the above, you should be able to `(require tabular-asa)` and begin working!
+
+# Documenation
+
+Refer to the [scribble documentation][docs].
+
+# License
+
+This code is licensed under the MIT license. See the LICENSE.txt file in this repository for the complete text.
 
 # fin.
 
 [racket]: https://racket-lang.org/
 [threading]: https://pkgs.racket-lang.org/package/threading
+[docs]: https://docs.racket-lang.org/tabular-asa/index.html
