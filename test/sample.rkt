@@ -46,6 +46,8 @@ All rights reserved.
               (table-cut '(Genre Title))
               (table-groupby '(Genre))
               (group-count))])
-  (plot (discrete-histogram (for/list ([x (table-column df 'Genre)]
-                                       [y (table-column df 'Title)])
-                              (list x y)))))
+  (parameterize ([plot-x-tick-label-angle 30]
+                 [plot-x-tick-label-anchor 'top-right])
+    (plot (discrete-histogram (for/list ([x (table-column df 'Genre)]
+                                         [y (table-column df 'Title)])
+                                (list x y))))))
