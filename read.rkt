@@ -46,12 +46,12 @@ All rights reserved.
     (define new-columns (sequence-map (λ (_) (gensym "col")) (in-naturals)))
 
     ; create a new column
-    (define/public (add-column name)
+    (define/public (add-column name [backfill #f])
       (let ([column-name (if (symbol? name)
                              name
                              (string->symbol (~a name)))])
         (set! column-order (append column-order (list column-name))))
-      (make-vector n #f))
+      (make-vector n backfill))
 
     ; build the column-major data vectors
     (for ([k column-order])

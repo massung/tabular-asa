@@ -234,7 +234,7 @@ All rights reserved.
 
 ;; ----------------------------------------------------
 
-(define (table-update df k proc #:ignore-na [ignore-na #t])
+(define (table-update df k proc #:ignore-na? [ignore-na #t])
   (let ([f (λ (x) (and x (proc x)))])
     (table-with-column df (table-apply f df (list k)) #:as k)))
 

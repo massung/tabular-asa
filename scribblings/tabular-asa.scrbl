@@ -1,6 +1,6 @@
 #lang scribble/manual
 
-@require[@for-label[tabular-asa]]
+@require[@for-label[tabular-asa racket/base racket/class]]
 
 @title{Tabular Asa}
 @author[@author+email["Jeffrey Massung" "massung@gmail.com"]]
@@ -138,6 +138,77 @@ It is important to note that - when reading tables - columns that don't already 
 
 
 @;; ----------------------------------------------------
+@section{Building Tables}
+
+Tables can also be built at constructed using an instance of @racket[table-builder%] or with the @racket[for/table] macro.
+
+@defclass[table-builder% object% ()]{
+ A @racket[table-builder%] is an object that can be sent rows or records for appending and automatically grow the shape of the table being built efficiently.
+
+ @defconstructor[([initial-size exact-nonnegative-integer? 5000]
+                  [columns (listof symbol?) '()])]{
+  Creates a new @racket[table-builder%] with an initial shape.
+ }
+
+ @defmethod[(add-column [name symbol?]
+                        [backfill any/c #f])
+            void?]{
+  Appends a new column to the table being built. Any rows already added to the table will be be backfilled with @racket[backfill].
+
+  Typically, this method need not be called manually, as it will automatically be called as-needed by @racket[add-row] and @racket[add-record].
+ }
+
+ @defmethod[(add-row [r list?]
+                     [ks (or/c (non-empty-listof symbol?) #f)])
+            void?]{
+  Appends a new row of values to the table. If @racket[ks] is @racket[#f] (the default), then the current set of columns (in order) of the table is assumed. If the row contains more values than there are columns then additional columns will be added to the table with generated names.
+ }
+
+ @defmethod[(add-record [r hash-eq?]) void?]{
+  Appends a new row of values to the table. The record is assumed to be a hash of @racket[(column . value)] pairings. If the record contains a column name not yet present in the table, a new column is created for it.
+ }
+
+ @defmethod[(build) table?]{
+  Builds a new index for the table, truncates the column data and returns it.
+
+  This method may be called more than once, and each time it will return a new table. This allows you to do things like add rows, build a table, add more rows and columns, build another table, etc.
+ }
+
+ Example:
+
+ @racketblock[
+  (let ([builder (new table-builder%
+                      [columns '(hero universe)])])
+    (send builder add-row '("Superman" "DC"))
+    (send builder add-record #hasheq((hero . "Wolverine") (universe . "Marvel")))
+    (send builder build))
+ ]
+}
+
+@defform[(for/table (init-forms ...) (for-clause ...) body-or-break ... body)]{
+ Builds a table using a @racket[for] macro.
+ 
+ The @racket[init-forms] are the optional, initial forms used to create a @racket[table-builder%] instance.
+
+ Each iteration of @racket[body] should return either a @racket[list?] or @racket[hash-eq?], which will automatically be sent to the @racket[table-builder%] using @racket[add-row] or @racket[add-record]. It's also possible to mix and match (i.e., return a list for one iteration and a hash for another).
+
+ When the @racket[for-clause] terminates, the table is built and returned.
+
+ Example:
+
+ @racketblock[
+  (for/table ([initial-size 3]
+              [columns '(hero universe)])
+             ([i 3])
+    (case i
+     ((0) '("Superman" "DC"))
+     ((1) '("Wolverine" "Marvel"))
+     ((2) '("Batman" "DC"))))
+ ]
+}
+
+
+@;; ----------------------------------------------------
 @section{Tables}
 
 @defstruct[table ([index (vectorof exact-nonnegative-integer?)]
@@ -202,7 +273,7 @@ It is important to note that - when reading tables - columns that don't already 
          table?]{
  Returns a new table with either the column data added or replaced if @racket[as] is the same name as an existing column. If no column name is provided then a new column name is generated for it.
 
- If the @racket[data] sequence contains fewer elements than there are rows in the table, then the extra rows will be filled with @racket[#f] for the new column. Likewise, if @racket[data] contains more values than there are rows, the extra values will be dropped and not added to the new column.
+ If the @racket[data] sequence contains fewer elements than there are rows in the table, then the extra rows will be filled with @racket[#f] for the new column. Likewise, if @racket[data] contains more values than there are rows, the extra values will be dropped.
 
  It's important to note that the vector for the column generated @italic{will be as large as necessary for it to be indexed properly by the table!} For example, let's say you begin with a table that has 1M rows and filter it, which returns a new table with a single row. If the index of that single row is 999999 (i.e., the last row), then adding a new column will create a vector with 1M entries, all but one of which will contain @racket[#f].
 }
@@ -295,7 +366,7 @@ It is important to note that - when reading tables - columns that don't already 
 @defproc[(table-update [df table?]
                        [k symbol?]
                        [proc procedure?]
-                       [#:ignore-na ignore-na boolean? #t])
+                       [#:ignore-na? ignore-na boolean? #t])
       table?]{
  Applies the column @racket[k] to @racket[proc] and returns a new table with the column values replaced. This is similar to:
 
