@@ -36,7 +36,7 @@ This is a brief example of loading a table from a CSV, filtering, grouping, aggr
                                  (list x y))))))
 ]
 
-@image{test/plot.png}
+@image{examples/plot.png}
 
 
 @;; ----------------------------------------------------
@@ -146,8 +146,15 @@ Tables can also be built at constructed using an instance of @racket[table-build
  A @racket[table-builder%] is an object that can be sent rows or records for appending and automatically grow the shape of the table being built efficiently.
 
  @defconstructor[([initial-size exact-nonnegative-integer? 5000]
-                  [columns (listof symbol?) '()])]{
+                  [columns (listof symbol?) '()]
+                  [sort-columns boolean? #f])]{
   Creates a new @racket[table-builder%] with an initial shape.
+
+  The @racket[initial-size] is how many rows are initially reserved for each column.
+
+  The @racket[columns] is the initial list (and order) of column names. Columns may be added dynamically as rows and records are appended to the table.
+
+  The @racket[sort-columns] parameter makes it so that - upon building the table - the columns are sorted alphabetically. This is useful when building a table from records and you want to ensure a consistent ordering.
  }
 
  @defmethod[(add-column [name symbol?]
@@ -253,12 +260,12 @@ Tables can also be built at constructed using an instance of @racket[table-build
  Returns @racket[#t] if there are no rows or no columns in the table.
 }
 
-@defproc[(table-columns [df table?]) (listof column?)]{
- Returns a list of columns containing all the data in the table.
+@defproc[(table-header [df table?]) (listof symbol?)]{
+ Returns a list of symbols, which are the column names of the table.
 }
 
-@defproc[(table-column-names [df table?]) (listof symbol?)]{
- Returns a list of symbols, which are the column names of the table.
+@defproc[(table-columns [df table?]) (listof column?)]{
+ Returns a list of columns containing all the data in the table.
 }
 
 @defproc[(table-column [df table?]
@@ -318,9 +325,11 @@ Tables can also be built at constructed using an instance of @racket[table-build
  Given an reference position, return a record (hash) of the columns and values for that row.
 }
 
-@defproc[(table-records [df table?] 
-                        [i exact-nonnegative-integer?]) 
-         (sequenceof hash-eq?)]{
+@defproc[(table-rows [df table?]) (sequenceof list?)]{
+ Iterates over the table, returning a row (list) for each row. This is different from iterating over the table itself, because the table sequence also returns the index along with the row.
+}
+
+@defproc[(table-records [df table?]) (sequenceof hash-eq?)]{
  Iterates over the table, returning a record (hash) for each row.
 }
 
@@ -342,22 +351,22 @@ Tables can also be built at constructed using an instance of @racket[table-build
  Given a sequence of boolean values, filters the rows of @racket[df] and returns a new table. Use @racket[table-filter] to filter using a predicate function.
 }
 
-@defproc[(table-map [proc ((non-empty-listof any/c) -> any/c)]
-                    [df table?]
+@defproc[(table-map [df table?]
+                    [proc ((non-empty-listof any/c) -> any/c)]
                     [ks (or/c (non-empty-listof symbol?) #f) #f])
       table?]{
  Provided an optional list of columns, pass a list of those columns to @racket[proc] for every row in @racket[df] and return a lazy sequence of results. If @racket[ks] is @racket[#f] then all columns are used.
 }
 
-@defproc[(table-apply [proc procedure?]
-                      [df table?]
+@defproc[(table-apply [df table?]
+                      [proc procedure?]
                       [ks (or/c (non-empty-listof symbol?) #f) #f])
       table?]{
  Like @racket[table-map], but applies each list of column values to @racket[proc].
 }
 
-@defproc[(table-filter [proc procedure?]
-                       [df table?]
+@defproc[(table-filter [df table?]
+                       [proc procedure?]
                        [ks (or/c (non-empty-listof symbol?) #f) #f])
       table?]{
  Like @racket[table-apply], but the resulting sequence is used for a @racket[table-select]. A new table is returned.
@@ -375,9 +384,9 @@ Tables can also be built at constructed using an instance of @racket[table-build
  However, if @racket[ignore-na] is @racket[#t] (the default), then all @racket[#f] values are returned as @racket[#f] instead of being updated.
 }
 
-@defproc[(table-fold [proc (any/c any/c -> any/c)]
+@defproc[(table-fold [df table?]
+                     [proc (any/c any/c -> any/c)]
                      [i any/c]
-                     [df table?]
                      [final (any/c -> any/c) identity])
          table?]{
  Returns a table with a single row, where each column has been aggregated with @racket[proc], with an initial value of @racket[i]. Optionally, a @racket[final] function can be applied to the result before returning.

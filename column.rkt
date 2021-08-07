@@ -9,7 +9,6 @@ All rights reserved.
 
 |#
 
-(require "index.rkt")
 (require "orderable.rkt")
 (require "utils.rkt")
 
@@ -54,17 +53,6 @@ All rights reserved.
 
 (define (column-empty? col)
   (vector-empty? (column-index col)))
-
-;; ----------------------------------------------------
-
-(define (column-equal? col seq)
-  (let ([xs (sequence->stream col)])
-    (and (for/and ([y seq])
-           (and (not (stream-empty? xs))
-                (let ([x (stream-first xs)])
-                  (set! xs (stream-rest xs))
-                  (equal? x y))))
-         (stream-empty? xs))))
 
 ;; ----------------------------------------------------
 
@@ -129,35 +117,14 @@ All rights reserved.
   (check-equal? (column-name c) 'foo)
   (check-equal? (column-length c) 5)
   (check-equal? (column-empty? c) #f)
+  (check-equal? (sequence->list c) '(0 1 2 3 4))
 
-  ; check column-equal?
-  (check-true (column-equal? c '(0 1 2 3 4)))
-  (check-false (column-equal? c '(0 1 2 3)))
-  (check-false (column-equal? c '(0 1 2 3 4 5)))
-  (check-false (column-equal? c '(0 1 a 2 3)))
-
-  ; renaming
+  ; renaming check
   (check-equal? (column-name (column-rename c 'bar)) 'bar)
 
-  ; ensure length and data are identical
-  (define (check-data c seq)
-    (check-true (column-equal? c seq)))
-
-  ; head, tail, etc.
-  (check-data (column-head c 2) #(0 1))
-  (check-data (column-tail c 2) #(3 4))
-
-  ; compaction test
-  (check-equal? (column-data (column-compact (column-head c 2))) #(0 1))
-
-  ; sequence property test
-  (for ([x c] [i (in-naturals)])
-    (check-equal? i x))
-
-  ; mapping, filtering, etc.
-  (check-equal? (sequence->list (sequence-map add1 c)) '(1 2 3 4 5))
-  (check-equal? (sequence->list (sequence-filter even? c)) '(0 2 4))
-  (check-equal? (sequence-fold + 0 c) 10)
+  ; head and tail
+  (check-equal? (sequence->list (column-head c 2)) '(0 1))
+  (check-equal? (sequence->list (column-tail c 2)) '(3 4))
 
   ; sorting
-  (check-equal? (sequence->list (column-sort c)) '(0 1 2 3 4)))
+  (check-equal? (sequence->list (column-sort c sort-descending)) '(4 3 2 1 0)))

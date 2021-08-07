@@ -9,12 +9,6 @@ All rights reserved.
 
 |#
 
-(require racket/pretty)
-
-;; ----------------------------------------------------
-
-(require "column.rkt")
-(require "read.rkt")
 (require "table.rkt")
 (require "utils.rkt")
 
@@ -79,7 +73,7 @@ All rights reserved.
   (let* ([index-format (column-formatter '|| (index-preview df) mode)]
 
          ; formatters for each column
-         [column-formats (for/list ([k (table-column-names df)])
+         [column-formats (for/list ([k (table-header df)])
                            (column-formatter k (column-preview df k) mode))]
 
          ; formatter for a row
@@ -92,11 +86,11 @@ All rights reserved.
                        (newline port))])
 
     ; write the header
-    (row-format '|| (table-column-names df))
+    (row-format '|| (table-header df))
 
     ; write all the column previews
     (for ([i (index-preview df)]
-          [row (sequence-zip (for/list ([k (table-column-names df)])
+          [row (sequence-zip (for/list ([k (table-header df)])
                                (column-preview df k)))])
       (row-format i row))
 

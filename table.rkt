@@ -79,16 +79,16 @@ All rights reserved.
 
 ;; ----------------------------------------------------
 
+(define (table-header df)
+  (map car (table-data df)))
+
+;; ----------------------------------------------------
+
 (define (table-columns df)
   (for/list ([col (table-data df)])
     (match col
       [(cons k v)
        (column k (table-index df) v)])))
-
-;; ----------------------------------------------------
-
-(define (table-column-names df)
-  (map car (table-data df)))
 
 ;; ----------------------------------------------------
 
@@ -182,9 +182,9 @@ All rights reserved.
 ;; ----------------------------------------------------
 
 (define (table-records df)
-  (let ([ks (table-column-names df)])
-    (sequence-map (λ (row)
-                    (for/hash ([k ks] [v (cdr row)])
+  (let ([ks (table-header df)])
+    (sequence-map (λ (i row)
+                    (for/hash ([k ks] [v row])
                       (values k v)))
                   df)))
 
@@ -212,38 +212,38 @@ All rights reserved.
   
 ;; ----------------------------------------------------
 
-(define (table-map proc df [ks #f])
+(define (table-map df proc [ks #f])
   (sequence-map (λ (i row) (proc row)) (if ks (table-cut df ks) df)))
 
 ;; ----------------------------------------------------
 
-(define (table-apply proc df [ks #f])
+(define (table-apply df proc [ks #f])
   (sequence-map (λ (i row) (apply proc row)) (if ks (table-cut df ks) df)))
 
 ;; ----------------------------------------------------
 
-(define (table-for-each proc df [ks #f])
+(define (table-for-each df proc [ks #f])
   (sequence-for-each (λ (i row)
                        (apply proc row))
                      (if ks (table-cut df ks) df)))
 
 ;; ----------------------------------------------------
 
-(define (table-filter pred df [ks #f])
-  (table-select df (table-apply pred df ks)))
+(define (table-filter df pred [ks #f])
+  (table-select df (table-apply df pred ks)))
 
 ;; ----------------------------------------------------
 
 (define (table-update df k proc #:ignore-na? [ignore-na #t])
   (let ([f (λ (x) (and x (proc x)))])
-    (table-with-column df (table-apply f df (list k)) #:as k)))
+    (table-with-column df (table-apply df f (list k)) #:as k)))
 
 ;; ----------------------------------------------------
 
-(define (table-fold proc init df [result identity])
+(define (table-fold df proc init [result identity])
   (table #(0) (map (λ (k x)
                      (cons k (vector (result x))))
-                   (table-column-names df)
+                   (table-header df)
                    (for/fold ([cols (map (const init) (table-data df))])
                              ([(i row) df])
                      (map proc cols row)))))
@@ -254,9 +254,10 @@ All rights reserved.
   (let* ([cf (table-drop df ks)]
 
          ; build an index of just the key columns
-         [ix (build-index (table-rows (table-cut df ks)) less-than?)]
+         [rows (table-rows (table-cut df ks))]
+         [ix (build-index (sequence-map (λ (row) (and (all? row) row)) rows) less-than?)]
 
-         ; for each key, return an alist and series of indices
+         ; for each key, return an alist and the sub table
          [group (λ (key indices)
                   (values (map list ks key)
                           (table-with-index cf indices)))])
@@ -308,76 +309,3 @@ All rights reserved.
                                              #:key car)])
                           (for/vector ([i indices])
                             (cdr i)))])))
-
-;; ----------------------------------------------------
-
-(module+ test
-  (require rackunit)
-
-  ; create a simple table by hand
-  (define df (table (build-vector 5 identity)
-                    (list (cons 'name #("Jeff" "Jennie" "Isabel" "Dave" "Bob"))
-                          (cons 'age #(44 39 12 24 38))
-                          (cons 'gender #(m f f m m)))))
-
-  ; test shape/size
-  (check-equal? (table-length df) 5)
-  (check-equal? (length (table-data df)) 3)
-
-  ; test unknown column
-  (check-exn exn:fail? (λ () (table-column df 'foo)))
-
-  ; check row/record conversion
-  (check-equal? (table-row df 0) '("Jeff" 44 m))
-  (check-equal? (table-record df 0) #hash((name . "Jeff") (age . 44) (gender . m)))
-
-  ; check dropping, cutting and re-ordering of columns
-  (check-equal? (table-column-names (table-cut df '(age name))) '(age name))
-  (check-equal? (table-column-names (table-drop df '(age))) '(name gender))
-
-  ; check head, tail
-  (check-equal? (sequence->list (table-column (table-head df 2) 'name)) '("Jeff" "Jennie"))
-  (check-equal? (sequence->list (table-column (table-tail df 2) 'name)) '("Dave" "Bob"))
-
-  ; helper
-  (define (age-filter age) (< age 30))
-
-  ; check mapping, filtering, etc.
-  (check-equal? (sequence->list (table-apply age-filter df '(age))) '(#f #f #t #t #f))
-  (check-equal? (table-index (table-filter age-filter df '(age))) #(2 3))
-  (check-equal? (table-index (table-sort df '(age))) #(2 3 4 1 0))
-  (check-equal? (table-index (table-reverse df)) #(4 3 2 1 0))
-
-  ; distinct column values
-  (check-equal? (table-index (table-distinct df '(gender) 'first)) #(0 1))
-  (check-equal? (table-index (table-distinct df '(gender) 'last)) #(2 4))
-  (check-equal? (table-index (table-distinct df '(gender) 'none)) #())
-
-  ; check reindexing
-  (let ([rdf (table-reindex (table-filter age-filter df '(age)))])
-    (check-equal? (table-index rdf) #(0 1))
-    (check-equal? (table-data rdf) '((name . #("Isabel" "Dave"))
-                                     (age . #(12 24))
-                                     (gender . #(f m)))))
-
-  ; check column updating
-  (let ([rdf (table-update df 'name string-length)])
-    (check-equal? (column-data (table-column rdf 'name))
-                  #(4 6 6 4 3)))
-
-  ; check sorting of filtered data
-  (let ([rdf (table-sort (table-filter age-filter df '(age)) '(age) sort-descending)])
-    (check-equal? (table-index rdf) #(3 2)))
-
-  ; check column updating
-  (let ([rdf (table-with-column df (table-apply (λ (age) (- age 10)) df '(age)) #:as 'age)])
-    (check-equal? (table-column-names rdf) '(name age gender))
-    (check-equal? (column-data (table-column rdf 'age))
-                  #(34 29 2 14 28)))
-
-  ; check adding columns
-  (let ([ndf (table-with-column empty-table (in-range 5))])
-    (check-equal? (table-length ndf) 5)
-    (check-true (all? (table-apply = ndf))))
-  (let ([ndf (table-with-column df (table-apply age-filter df '(age)) #:as 'child)])
-    (check-equal? (column-data (table-column ndf 'child)) #(#f #f #t #t #f))))

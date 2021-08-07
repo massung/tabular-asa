@@ -10,14 +10,11 @@ All rights reserved.
 |#
 
 (require csv-reading
-         file/gunzip
          json)
 
 ;; ----------------------------------------------------
 
-(require "column.rkt")
 (require "table.rkt")
-(require "utils.rkt")
 
 ;; ----------------------------------------------------
 
@@ -31,7 +28,8 @@ All rights reserved.
 
     ; initialization
     (init-field [initial-size 5000]
-                [columns '()])
+                [columns '()]
+                [sort-columns #f])
 
     ; initial columns from header
     (define column-data (make-hasheq))
@@ -89,6 +87,8 @@ All rights reserved.
 
     ; build the final table
     (define/public (build)
+      (when sort-columns
+        (set! column-order (sort column-order symbol<?)))
       (table (build-vector i identity)
              (for/list ([k column-order])
                (let ([v (hash-ref column-data k)])
@@ -101,6 +101,36 @@ All rights reserved.
     (for ([row seq])
       (send builder add-row row))
     (send builder build)))
+
+;; ----------------------------------------------------
+
+(define (table-read/jsexpr jsexpr)
+  (let ([builder (new table-builder%
+                      [sort-columns #t])])
+    (match jsexpr
+            
+      ; column-oriented object -- {"col": [x1, x2, ...], ...}
+      [(hash-table (ks (list xs ...)) ...)
+       (letrec ([keys (hash-keys jsexpr)]
+
+                ; recursively add the rows together
+                [add-rows (λ (cols)
+                            (unless (empty? (first cols))
+                              (send builder add-row (map first cols) keys)
+                              (add-rows (map rest cols))))])
+         (add-rows (hash-values jsexpr)))]
+
+      ; row-oriented list -- [{"col1": x, "col2": y, ...}, ...]
+      [(list records ...)
+       (for ([r records])
+         (send builder add-record r))]
+                
+      ; unknown json orientation
+      [else #f])
+
+    ; construct the table - order the columns by name
+    (let ([df (send builder build)])
+      (table-cut df (sort (table-header df) symbol<?)))))
 
 ;; ----------------------------------------------------
 
@@ -125,7 +155,11 @@ All rights reserved.
              
          ; create parser
          [next-row (let ([reader (make-csv-reader port spec)])
-                     (if (not drop-index) reader (compose cdr reader)))]
+                     (if (not drop-index)
+                         reader
+                         (λ ()
+                           (let ([row (reader)])
+                             (if (empty? row) row (cdr row))))))]
 
          ; get the first row (optionally the header)
          [first-row (next-row)]
@@ -145,42 +179,14 @@ All rights reserved.
                             [(member x na-values string-ci=?) na]
                             [else x]))))])
 
-    ; 
+    ; read each row into a new table
     (table-read/sequence (csv-map parse-row next-row) columns)))
-
-;; ----------------------------------------------------
-
-(define (table-read/jsexpr jsexpr)
-  (let ([builder (new table-builder%)])
-    (match jsexpr
-            
-      ; column-oriented object -- {"col": [x1, x2, ...], ...}
-      [(hash-table (ks (list xs ...)) ...)
-       (letrec ([keys (hash-keys jsexpr)]
-
-                ; recursively add the rows together
-                [add-rows (λ (cols)
-                            (unless (empty? (first cols))
-                              (send builder add-row (map first cols) keys)
-                              (add-rows (map rest cols))))])
-         (add-rows (hash-values jsexpr)))]
-
-      ; row-oriented list -- [{"col1": x, "col2": y, ...}, ...]
-      [(list records ...)
-       (for ([r records])
-         (send builder add-record r))]
-                
-      ; unknown json orientation
-      [else #f])
-
-    ; construct the table
-    (send builder build)))
 
 ;; ----------------------------------------------------
 
 (define (table-read/json port #:lines? [lines #f])
   (if lines
-      (let ([builder (new table-builder%)])
+      (let ([builder (new table-builder% [sort-columns #t])])
         (do ([r (read-json port)
                 (read-json port)])
           [(eof-object? r) (send builder build)]
@@ -188,24 +194,3 @@ All rights reserved.
 
       ; read the entire json first
       (table-read/jsexpr (read-json port))))
-
-;; ----------------------------------------------------
-
-(module+ test
-  (require rackunit)
-
-  (test-case "table-read/sequence"
-             (define df (table-read/sequence '(("Superman" m "DC")
-                                               ("Captain Marvel" f "Marvel"))
-                                             '(hero gender universe)))
-
-             ; validate integrity
-             (check-equal? (table-column-names df) '(hero gender universe))
-             (check-equal? (table-length df) 2))
-
-  (test-case "table-read/csv"
-             (define df (call-with-input-file "test/books.csv" table-read/csv))
-
-             ; ensure shape, do a quick filter and check results
-             (check-equal? (table-length df) 210)
-             (check-equal? (table-length (table-drop-na df)) 112)))

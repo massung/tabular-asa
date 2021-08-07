@@ -45,8 +45,8 @@
   ; validates the table
   (define (verify-table df)
     (check-equal? (table-length df) (length names))
-    (check-equal? (table-column-names df) '(name gender universe))
-    (check-equal? (sequence->list df)
+    (check-equal? (table-header df) '(name gender universe))
+    (check-equal? (sequence->list (sequence-map cons df))
                   (for/list ([i (in-naturals)]
                              [name names]
                              [gender genders]

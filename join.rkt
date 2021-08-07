@@ -23,14 +23,14 @@ All rights reserved.
 ;; ----------------------------------------------------
 
 (define (table-remapped df other suffix on with)
-  (let* ([other-columns (table-column-names other)]
+  (let* ([other-columns (table-header other)]
 
          ; columns to drop are those that match name and order
          [drop-columns (for/list ([k-on on] [k-with with] #:when (eq? k-on k-with))
                          k-on)]
 
          ; columns existing in other need to be renamed
-         [rename-map (for/hash ([k (table-column-names df)]
+         [rename-map (for/hash ([k (table-header df)]
                                 #:when (and (not (memq k on))
                                             (member k other-columns)))
                        (values k (string->symbol (format "~a~a" k suffix))))])
@@ -41,8 +41,8 @@ All rights reserved.
 (define (table-join left right on ix merge [else #f])
   (let ([builder (new table-builder%
                       [initial-size (table-length left)]
-                      [columns (append (table-column-names left)
-                                       (table-column-names right))])])
+                      [columns (append (table-header left)
+                                       (table-header right))])])
 
     ; iterate over left table, join with right
     (for ([(i row) (table-cut left on)])
@@ -82,39 +82,6 @@ All rights reserved.
                 on
                 ix
                 append
-                (let ([empty (map (const #f) (table-column-names right))])
+                (let ([empty (map (const #f) (table-header right))])
                   (λ (left-row)
                     (append left-row empty))))))
-
-;; ----------------------------------------------------
-
-(module+ test
-  (require rackunit)
-
-  ; create a simple table
-  (define people
-    (let ([builder (new table-builder% [columns '(name age gender)])])
-      (send builder add-row '("Jeff" 32 m))
-      (send builder add-row '("Dave" 26 m))
-      (send builder add-row '("Henry" 18 m))
-      (send builder add-row '("Sally" 37 f))
-      (send builder build)))
-  
-  ; create another table to join with
-  (define jobs
-    (let ([builder (new table-builder% [columns '(name title)])])
-      (send builder add-row '("Jeff" janitor))
-      (send builder add-row '("Sally" manager))
-      (send builder add-row '("Dave" programmer))
-      (send builder add-row '("Mary" vp))
-      (send builder build)))
-
-  ; join inner and outer
-  (define inner (table-join/inner people jobs '(name)))
-  (define outer (table-join/outer people jobs '(name)))
-  
-  ; verify join results
-  (check-equal? (sequence->list (table-column inner 'title))
-                '(janitor programmer manager))
-  (check-equal? (sequence->list (table-column outer 'title))
-                '(janitor programmer #f manager)))

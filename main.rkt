@@ -33,7 +33,6 @@ All rights reserved.
  (struct-out column)
  column-length
  column-empty?
- column-equal?
  column-compact
  column-rename
  column-ref
@@ -69,8 +68,8 @@ All rights reserved.
  table-empty?
  table-reindex
  table-with-index
+ table-header
  table-columns
- table-column-names
  table-column
  table-with-column
  table-with-columns-renamed
@@ -79,6 +78,7 @@ All rights reserved.
  table-irow
  table-row
  table-record
+ table-rows
  table-records
  table-head
  table-tail

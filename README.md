@@ -27,7 +27,7 @@ This is a brief example of loading a table from a CSV, filtering, grouping, aggr
 
 The above should produce a image plot like this:
 
-![](test/plot.png)
+![](examples/plot.png)
 
 # Installation
 

@@ -9,14 +9,12 @@ All rights reserved.
 
 |#
 
-(require file/gzip
-         json)
+(require json)
 
 ;; ----------------------------------------------------
 
 (require "column.rkt")
 (require "print.rkt")
-(require "read.rkt")
 (require "table.rkt")
 
 ;; ----------------------------------------------------
@@ -66,12 +64,12 @@ All rights reserved.
 
     ; write the header?
     (when header
-      (let ([cols (table-column-names df)])
+      (let ([cols (table-header df)])
         (apply write-row (if keep-index (cons "" cols) cols))))
 
     ; write each row
-    (for ([row df])
-      (apply write-row (if keep-index row (cdr row))))))
+    (for ([(i row) df])
+      (apply write-row (if keep-index (cons i row) row)))))
 
 ;; ----------------------------------------------------
 
@@ -108,7 +106,7 @@ All rights reserved.
       ('columns
        (let ([jsexpr (for/hash ([col (table-columns df)])
                        (values (column-name col)
-                               (sequence->list (column-data col))))])
+                               (sequence->list col)))])
          (write-json jsexpr port)))
   
       ; unknown format

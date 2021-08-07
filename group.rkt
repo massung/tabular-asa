@@ -9,11 +9,9 @@ All rights reserved.
 
 |#
 
-(require "for.rkt")
 (require "orderable.rkt")
 (require "read.rkt")
 (require "table.rkt")
-(require "utils.rkt")
 
 ;; ----------------------------------------------------
 
@@ -24,11 +22,11 @@ All rights reserved.
 (define (group-fold proc init g [result identity])
   (let ([builder (new table-builder%)])
     (for ([(keys df) g])
-      (let ([row (table-row (table-fold proc init df result) 0)])
+      (let ([row (table-row (table-fold df proc init result) 0)])
         (send builder
               add-row
               (append (map second keys) row)
-              (append (map first keys) (table-column-names df)))))
+              (append (map first keys) (table-header df)))))
 
     ; return the final table
     (send builder build)))
@@ -117,27 +115,3 @@ All rights reserved.
                       (let ([m (add1 n)])
                         (cons (if (zero? (random m)) b x) m))])))])
     (group-fold agg (cons #f 0) g car)))
-
-;; ----------------------------------------------------
-
-(module+ test
-  (require rackunit)
-  (require "print.rkt")
-
-  ; create a simple table
-  (define birds (table-read/sequence '(("Crane" 4.3 7.3)
-                                       ("Crane" 5.2 7.5)
-                                       ("Egret" 2.6 4.3)
-                                       ("Egret" #f 5.5)
-                                       ("Heron" 3.2 5.5)
-                                       ("Heron" 5.5 6.6)
-                                       ("Heron" 4.2 #f)
-                                       ("Stork" 3.3 5.0)
-                                       ("Stork" 3.8 5.0))
-                                     '(bird length wingspan)))
-
-  ; group by bird
-  (define g (table-groupby birds '(bird)))
-
-  ; TODO:
-  )
