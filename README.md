@@ -22,7 +22,9 @@ This is a brief example of loading a table from a CSV, filtering, grouping, aggr
                  [plot-x-tick-label-anchor 'top-right])
     (plot (discrete-histogram (for/list ([x (table-column df 'Genre)]
                                          [y (table-column df 'Title)])
-                                (list x y))))))
+                                (list x y)))
+          #:x-label "Genre"
+          #:y-label "Number of Titles Published")))
 ```
 
 The above should produce a image plot like this:
