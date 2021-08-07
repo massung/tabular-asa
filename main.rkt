@@ -133,3 +133,9 @@ All rights reserved.
  table-write/csv
  table-write/json
  table-write/string)
+
+;; ----------------------------------------------------
+
+(table-preview (let ([old-preview (table-preview)])
+                 (λ (df port mode)
+                   (display-table df port))))

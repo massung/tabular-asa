@@ -32,12 +32,12 @@ All rights reserved.
   #:methods gen:custom-write
   [(define write-proc
      (λ (df port mode)
-       ((table-preview) df port)))])
+       ((table-preview) df port mode)))])
 
 ;; ----------------------------------------------------
 
 (define table-preview
-  (make-parameter (λ (df [port (current-output-port)] #:keep-index? [keep-index #t])
+  (make-parameter (λ (df port mode)
                     (let-values ([(rows cols) (table-shape df)])
                       (fprintf port "#<table [~a rows x ~a cols]>" rows cols)))))
 

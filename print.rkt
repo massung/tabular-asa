@@ -50,31 +50,28 @@ All rights reserved.
 
 ;; ----------------------------------------------------
 
-(define (column-formatter k xs [mode #t])
-  (let* ([repr (if mode ~v ~a)]
-
-         ; maximum width of column name and values
-         [width (for/fold ([w (string-length (repr k))])
+(define (column-formatter k xs [repr ~a])
+  (let* ([width (for/fold ([w (string-length (repr k))])
                           ([x xs])
                   (max w (string-length (repr x))))])
 
     ; format function
-    (λ (x) ((if mode ~v ~a) x
-                            #:align 'right
-                            #:width (+ width 3)
-                            #:limit-marker "..."))))
+    (λ (x) (repr x
+                 #:align 'right
+                 #:width (+ width 3)
+                 #:limit-marker "..."))))
 
 ;; ----------------------------------------------------
 
 (define (write-table df
                      [port (current-output-port)]
-                     [mode #t]
+                     [repr ~a]
                      #:keep-index? [keep-index #t])
-  (let* ([index-format (column-formatter '|| (index-preview df) mode)]
+  (let* ([index-format (column-formatter '|| (index-preview df) repr)]
 
          ; formatters for each column
          [column-formats (for/list ([k (table-header df)])
-                           (column-formatter k (column-preview df k) mode))]
+                           (column-formatter k (column-preview df k) repr))]
 
          ; formatter for a row
          [row-format (λ (i row)
@@ -106,9 +103,9 @@ All rights reserved.
 ;; ----------------------------------------------------
 
 (define (display-table df [port (current-output-port)] #:keep-index? [keep-index #t])
-  (write-table df port #f #:keep-index? keep-index))
+  (write-table df port ~a #:keep-index? keep-index))
 
 ;; ----------------------------------------------------
 
 (define (print-table df [port (current-output-port)] #:keep-index? [keep-index #t])
-  (write-table df port #t #:keep-index? keep-index))
+  (write-table df port ~v #:keep-index? keep-index))
