@@ -91,6 +91,8 @@ Additionally, tables contain an a vector which is the index of which rows it see
 
 For the purposes of this documentation and function names, a "row" is defined as a @racket[list?] and a "record" is defined as @racket[hash?].
 
+Likewise, the symbol @racket[k] is used in place of a column name (a @racket[symbol?]) and the symbol @racket[ks] is used for a list of column names.
+
 
 @;; ----------------------------------------------------
 @section{Reading Tables}
@@ -135,7 +137,7 @@ It is important to note that - when reading tables - columns that don't already 
 @defproc[(table-read/json [port input-port?]
                           [#:lines? lines boolean? #f])
          table?]{
- Reads the data in @racket[port] as a JSON value. If @racket[lines] is @racket[#t] then the @racket[port] is read line-by-line and assumed to be a JSON object (@racket[hash-eq?]) corresponding to a single record of the resulting table. Otherwise the entire JSON object is read into memory and passed to @racket[table-read/jsexpr].
+ Reads the data in @racket[port] as a JSON value. If @racket[lines] is @racket[#t] then the @racket[port] is read line-by-line, where each line is assumed to be a JSON object (@racket[hash-eq?]) corresponding to a single record of the resulting table. Otherwise the entire JSON object is read into memory and passed to @racket[table-read/jsexpr].
 }
 
 
@@ -174,7 +176,7 @@ Tables can also be built at constructed using an instance of @racket[table-build
  }
 
  @defmethod[(add-record [r hash-eq?]) void?]{
-  Appends a new row of values to the table. The record is assumed to be a hash of @racket[(column . value)] pairings. If the record contains a column name not yet present in the table, a new column is created for it.
+  Appends a new row of values to the table. The record is assumed to be a @racket[hash-eq?] of @racket[(k . value)] pairings. If the record contains a column name not yet present in the table, a new column is created for it.
  }
 
  @defmethod[(build) table?]{
@@ -243,7 +245,7 @@ Tables can also be built at constructed using an instance of @racket[table-build
 @defparam[table-preview proc (table? output-port? -> void?) #:value procedure?]{
   Controls how tables are previewed on the REPL. The default function, simply prints the @racket[table-shape] on a single line like so:
 
-  @verbatim|{#<table [359 rows x 8 cols]}|
+  @verbatim|{#<table [359 rows x 8 cols]>}|
 
   However, if you may supply your own function, or even replace it with @racket[display-table] or @racket[print-table] if you always want to see a preview of the table on the REPL.
 }
@@ -313,12 +315,28 @@ Tables can also be built at constructed using an instance of @racket[table-build
                      [i exact-nonnegative-integer?]) 
          (listof any/c)]{
  Given an index position, return a row (list) of the values in the columns at that position. An index position is the exact index into the column data the table references. This is usually not what you want, but can be useful in some situations.
+
+ For a more concrete example of this, imagine a brand new table with a single column of 3 value: @racket[#(a b c)]; it has an index of @racket[#(0 1 2)]. Now, reverse the table; the index is now @racket[#(2 1 0)]. Calling @racket[(table-irow df 2)] will return @racket['(c)], because that's the value at index 2. However, calling @racket[(table-row df 2)] will return @racket['(a)], because that's the value of the third row; the table has been reversed.
+
+ This can be seen in action easily with the following code:
+
+ @racketblock[
+  (let ([df (table-reverse (table-with-column empty-table '(a b c)))])
+    (for ([(i row) df] [n (in-naturals)])
+      (displayln (format " for ~a = ~v" i row))
+      (displayln (format "irow ~a = ~v" i (table-irow df i)))
+      (displayln (format " row ~a = ~v" n (table-row df n)))))
+ ]
+
+ The for loop follows the index, so index 2 should be output first, which is reference row 0. The last index output is 0, which is the last reference row (2).
 }
 
 @defproc[(table-row [df table?] 
                     [i exact-nonnegative-integer?]) 
          (list/c any/c)]{
  Given an reference position, return a row (list) of the values in the columns at that position. A reference position is similar to @racket[vector-ref] or @racket[list-ref]: it is the zero-based, nth row within the table.
+
+ See the comment for @racket[table-irow] for more details.
 }
 
 @defproc[(table-record [df table?] 
@@ -381,9 +399,9 @@ Tables can also be built at constructed using an instance of @racket[table-build
       table?]{
  Applies the column @racket[k] to @racket[proc] and returns a new table with the column values replaced. This is similar to:
 
- @racketblock[(table-with-column df (table-apply proc df (list k)) #:as k)]
+ @racketblock[(table-with-column df (table-apply df proc (list k)) #:as k)]
 
- However, if @racket[ignore-na] is @racket[#t] (the default), then all @racket[#f] values are returned as @racket[#f] instead of being updated.
+ If @racket[ignore-na] is @racket[#t] (the default), then all @racket[#f] values are returned as @racket[#f] instead of being updated.
 }
 
 @defproc[(table-fold [df table?]
@@ -398,7 +416,7 @@ Tables can also be built at constructed using an instance of @racket[table-build
                         [ks (non-empty-listof symbol?)]
                         [less-than? (or/c (any/c any/c -> boolean?) #f) sort-ascending])
          (sequence/c (listof (list/c symbol? any/c)) table?)]{
- Creates and returns a sequence of reference indices grouped by the columns in @racket[ks]. Each iteration of the sequence returns two values: an associative list of the group in @racket[(column value)] form and the subtable of all rows for that group. If @racket[less-than?] is not @racket[#f] then the groups are returned in-order.
+ Creates and returns a sequence of reference indices grouped by the columns in @racket[ks]. Each iteration of the sequence returns two values: an associative list of the group in @racket[(k value)] form and the subtable of all rows for that group. If @racket[less-than?] is @racket[#f] then the groups are returned in the whatever order they appeared in the source table.
 }
 
 @defproc[(table-drop-na [df table?]
