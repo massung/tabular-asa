@@ -11,21 +11,24 @@ All rights reserved.
 
 (require plot)
 (require tabular-asa)
-(require threading)
 
 ; load a CSV file into a dataframe
 (define books (call-with-input-file "books.csv" table-read/csv))
 
-; plot how many books there are per genre
-(let ([df (~> books
-              (table-drop-na '(Publisher))  ; remove rows with missing publisher
-              (table-cut '(Genre Title))    ; keep only genre and title columns
-              (table-groupby '(Genre))      ; group records by genre
-              (group-count))])              ; aggregate titles by genre
-  (parameterize ([plot-x-tick-label-angle 30]
-                 [plot-x-tick-label-anchor 'top-right])
-    (plot (discrete-histogram (for/list ([x (table-column df 'Genre)]
-                                         [y (table-column df 'Title)])
-                                (list x y)))
-          #:x-label "Genre"
-          #:y-label "Number of Titles Published")))
+; keep only the genre and title columns
+(define genre-title (table-cut books '(Genre Title)))
+
+; group the titles by genre
+(define grouped (table-groupby genre-title '(Genre)))
+
+; count published titles by group
+(define titles (group-count grouped))
+
+; plot the published titles
+(parameterize ([plot-x-tick-label-angle 30]
+               [plot-x-tick-label-anchor 'top-right])
+  (plot (discrete-histogram (for/list ([x (table-column titles 'Genre)]
+                                       [y (table-column titles 'Title)])
+                              (list x y)))
+        #:x-label "Genre"
+        #:y-label "Number of Titles Published"))
