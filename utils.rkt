@@ -48,3 +48,31 @@ All rights reserved.
 
 (define (vector-tail v n)
   (vector-take-right v (min (vector-length v) n)))
+
+;; ----------------------------------------------------
+
+(define (snake-case s)
+  (let ([s (string-downcase s)])
+    (regexp-replace* #rx"[^a-zA-Z0-9]+" s "_")))
+
+;; ----------------------------------------------------
+
+(define (kebab-case s)
+  (let ([s (string-downcase s)])
+    (regexp-replace* #rx"[^a-zA-Z0-9]+" s "-")))
+
+;; ----------------------------------------------------
+
+(define (camel-case s)
+  (let ([s (string-downcase s)]
+        [f (λ (_ s)
+             (string-upcase s))])
+    (regexp-replace* #rx"[^a-z0-9]+([a-z])" s f)))
+
+;; ----------------------------------------------------
+
+(define (pascal-case s)
+  (let ([s (string-downcase s)]
+        [f (λ (_ s)
+             (string-upcase s))])
+    (string->symbol (regexp-replace* #rx"(?:^|[^a-z0-9]+)([a-z])" s f))))

@@ -144,7 +144,7 @@ All rights reserved.
                         #:comment-char [comment #\#]
                         #:strip? [strip #f]
                         #:na [na #f]
-                        #:na-values [na-values (list "" "." "na" "n/a" "nan" "null")])
+                        #:na-values [na-values (list "" "." "-" "na" "n/a" "nan" "null")])
   (let* ([spec `((separator-chars ,sep)
                  (newline-type . ,newline)
                  (quote-char . ,quote)
