@@ -104,6 +104,14 @@ All rights reserved.
 
 ;; ----------------------------------------------------
 
+(define (table-read/columns seq [columns #f])
+  (for/fold ([df empty-table])
+            ([xs seq]
+             [col (or columns (in-cycle (list #f)))])
+    (table-with-column df xs #:as col)))
+
+;; ----------------------------------------------------
+
 (define (table-read/jsexpr jsexpr)
   (let ([builder (new table-builder%
                       [sort-columns #t])])
@@ -144,7 +152,7 @@ All rights reserved.
                         #:comment-char [comment #\#]
                         #:strip? [strip #f]
                         #:na [na #f]
-                        #:na-values [na-values (list "" "." "-" "na" "n/a" "nan" "null")])
+                        #:na-values [na-values (list "" "-" "." "na" "n/a" "nan" "null")])
   (let* ([spec `((separator-chars ,sep)
                  (newline-type . ,newline)
                  (quote-char . ,quote)

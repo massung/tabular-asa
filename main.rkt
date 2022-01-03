@@ -117,6 +117,7 @@ All rights reserved.
  ; read
  table-builder%
  table-read/sequence
+ table-read/columns
  table-read/csv
  table-read/json
  table-read/jsexpr

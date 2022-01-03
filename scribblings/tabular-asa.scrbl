@@ -65,7 +65,6 @@ Tabular Asa does this by starting with a couple very simple concepts and buildin
  @item{Aggregating.}
 ]
 
-
 @;; ----------------------------------------------------
 @section{Row vs. Column Major}
 
@@ -106,6 +105,16 @@ It is important to note that - when reading tables - columns that don't already 
  Creates and returns a new @racket[table] from either a sequence of rows or a sequence of records.
 }
 
+@defproc[(table-read/columns [seq (sequenceof sequence?)]
+                             [columns (or/c (listof symbol?) #f) #f])
+         table?]{
+ Creates and returns a new @racket[table] from a series of sequences. If @racket[columns] is provided then each column will be given the name, otherwise generated column names will be provided.
+
+ @racketblock[
+  (table-read/columns '((0 1 2) #("a" "b" "c") "def") '(col1 col2 col3))
+ ]
+}
+
 @defproc[(table-read/jsexpr [jsexpr jsexpr?]) table?]{
  Given a @racket[jsexpr?], use the shape of the object to determine how it should be transformed into a table.
 
@@ -123,11 +132,11 @@ It is important to note that - when reading tables - columns that don't already 
                          [#:comment-char comment char? #\#]
                          [#:strip? strip boolean? #f]
                          [#:na na any/c #f]
-                         [#:na-values na-values (listof string?) (list "" "." "na" "n/a" "nan" "null")])
+                         [#:na-values na-values (listof string?) (list "" "-" "." "na" "n/a" "nan" "null")])
          table?]{
  Reads the data in @racket[port] as a CSV file using the options specified and returns a new @racket[table]. Most of the arguments are used for parsing the CSV.
 
- The @racket[header] argument - if @racket[#t] - indicates that the first non-comment row of the CSV should be treated as the list of column names. If false then the column names will be generated as needed.
+ The @racket[header] argument - if @racket[#t] - indicates that the first non-comment row of the CSV should be treated as the list of column names. If @racket[#f] then the column names will be generated as needed.
 
  The @racket[drop-index] arugment - if @racket[#t] - assumes that the first column of the CSV is the row index (i.e., an auto-incrementing integer) and shouldn't be kept. If there is a row index column, and it is not dropped, it's important to note that it will be treated just like any other column and is NOT used as the table's index.
 
