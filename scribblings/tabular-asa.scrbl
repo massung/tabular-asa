@@ -393,7 +393,6 @@ Tables can also be built at constructed using an instance of @racket[table-build
                                    (48 14 24))
                                  '(name age)))
 
-  ; join column values together into a string
   (sequence->list (table-map df (λ (row) (string-join (map ~a row)))))
  ]
 }
@@ -411,7 +410,6 @@ Tables can also be built at constructed using an instance of @racket[table-build
                                    (48 14 24))
                                  '(name age)))
 
-  ; join column values together into a string
   (sequence->list (table-apply df (λ (name age) (format "~a ~a" name age))))
  ]
 }
