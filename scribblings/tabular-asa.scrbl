@@ -383,15 +383,37 @@ Tables can also be built at constructed using an instance of @racket[table-build
 @defproc[(table-map [df table?]
                     [proc ((non-empty-listof any/c) -> any/c)]
                     [ks (or/c (non-empty-listof symbol?) #f) #f])
-      table?]{
- Provided an optional list of columns, pass a list of those columns to @racket[proc] for every row in @racket[df] and return a lazy sequence of results. If @racket[ks] is @racket[#f] then all columns are used.
+      sequence?]{
+ Provided an optional list of columns, calls @racket[proc] for every row in @racket[df] represented as a list. If @racket[ks] is @racket[#f] then all columns are used.
+
+ Example:
+
+ @racketblock[
+  (define df (table-read/columns '(("Jeff" "Aaron" "Rachel")
+                                   (48 14 24))
+                                 '(name age)))
+
+  ; join column values together into a string
+  (sequence->list (table-map df (λ (row) (string-join (map ~a row)))))
+ ]
 }
 
 @defproc[(table-apply [df table?]
                       [proc procedure?]
                       [ks (or/c (non-empty-listof symbol?) #f) #f])
-      table?]{
- Like @racket[table-map], but applies each list of column values to @racket[proc].
+      sequence?]{
+ Like @racket[table-map], but applies @racket[proc] with multiple arguments (one per column) as opposed to a single list per row. The arguments are supplied in column-order.
+
+ Example:
+
+ @racketblock[
+  (define df (table-read/columns '(("Jeff" "Aaron" "Rachel")
+                                   (48 14 24))
+                                 '(name age)))
+
+  ; join column values together into a string
+  (sequence->list (table-apply df (λ (name age) (format "~a ~a" name age))))
+ ]
 }
 
 @defproc[(table-filter [df table?]
