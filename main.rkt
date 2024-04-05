@@ -31,6 +31,8 @@ All rights reserved.
  
  ; column
  (struct-out column)
+ empty-column
+ build-column
  column-length
  column-empty?
  column-compact
