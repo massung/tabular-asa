@@ -253,15 +253,26 @@ All rights reserved.
 (define (table-groupby df ks [less-than? sort-ascending])
   (let* ([cf (table-drop df ks)]
 
-         ; build an index of just the key columns
-         [rows (table-rows (table-cut df ks))]
-         [ix (build-index (sequence-map (λ (row) (and (all? row) row)) rows) less-than?)]
+         ; create a list of all the unique groups
+         [groups (make-hash)]
+         [keys '()]
 
-         ; for each key, return an alist and the sub table
-         [group (λ (key indices)
-                  (values (map list ks key)
-                          (table-with-index cf indices)))])
-    (sequence-map group ix)))
+         ; the order of keys to output
+         [group-indices (for ([(i key) (table-cut df ks)] #:when (all? key))
+                          (hash-update! groups key (λ (ix)
+                                                     (when (null? ix)
+                                                       (set! keys (cons key keys)))
+                                                     (cons i ix)) '()))])
+
+    ; return each group and table
+    (sequence-map (λ (key)
+                    (let ([ix (reverse (hash-ref groups key))])
+                      (values (map list ks key) (table-with-index cf ix))))
+
+                  ; determine the order groups are returned in
+                  (if less-than?
+                      (sort keys less-than?)
+                      (reverse keys)))))
 
 ;; ----------------------------------------------------
 

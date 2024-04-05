@@ -72,17 +72,15 @@ All rights reserved.
     (define/private (column-set! k x)
       (let ([v (hash-ref! column-data k (λ () (add-column k)))])
         (vector-set! v i x)))
-
-    ; append a record
-    (define/public (add-record record)
-      (for ([(k x) record])
-        (column-set! k x))
-      (grow-table))
     
     ; append a row
     (define/public (add-row xs [ks #f])
-      (for ([k (sequence-append (or ks column-order) new-columns)] [x xs])
-        (column-set! k x))
+      (for ([k (sequence-append (or ks column-order) new-columns)]
+            [x (in-values-sequence xs)])
+        (match x
+          [(list v) (column-set! k v)]
+          [(list k v) (column-set! k v)]
+          [_ (error "Cannot construct row from ~a" xs)]))
       (grow-table))
 
     ; build the final table
@@ -131,7 +129,7 @@ All rights reserved.
       ; row-oriented list -- [{"col1": x, "col2": y, ...}, ...]
       [(list records ...)
        (for ([r records])
-         (send builder add-record r))]
+         (send builder add-row r))]
                 
       ; unknown json orientation
       [else #f])
@@ -198,7 +196,7 @@ All rights reserved.
         (do ([r (read-json port)
                 (read-json port)])
           [(eof-object? r) (send builder build)]
-          (send builder add-record r)))
+          (send builder add-row r)))
 
       ; read the entire json first
       (table-read/jsexpr (read-json port))))

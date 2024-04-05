@@ -68,6 +68,29 @@ All rights reserved.
 
 ;; ----------------------------------------------------
 
+(define favorite-heroes (table-read/sequence (list (hasheq 'hero "Superman" 'favorite #t)
+                                                   (hasheq 'hero "Batman" 'favorite #t)
+                                                   (hasheq 'hero "Flash" 'favorite #f)
+                                                   (hasheq 'hero "Captain America" 'favorite #t)
+                                                   (hasheq 'hero "Wonder Woman" 'favorite #f)
+                                                   (hasheq 'hero "Fantastic Four" 'favorite #f)
+                                                   (hasheq 'hero "X-Men" 'favorite #f))))
+
+;; ----------------------------------------------------
+
+(test-case "Test table-read/sequence records"
+           (check-table (table-cut favorite-heroes '(hero favorite))  ; hash key order not guaranteed!
+                        '(hero favorite)
+                        '(("Superman" #t)
+                          ("Batman" #t)
+                          ("Flash" #f)
+                          ("Captain America" #t)
+                          ("Wonder Woman" #f)
+                          ("Fantastic Four" #f)
+                          ("X-Men" #f))))
+
+;; ----------------------------------------------------
+
 (define marvel-heroes (table-filter heroes (λ (uni) (string=? uni "Marvel")) '(universe)))
 
 ;; ----------------------------------------------------
@@ -190,6 +213,20 @@ All rights reserved.
              ; ensure each row has the same universe for the heroes
              (check-true (for/and ([(i row) merged])
                            (equal? (first row) (third row))))))
+
+;; ----------------------------------------------------
+
+(define old-heroes (table-filter heroes (λ (hero year uni) (< year 1960))))
+
+;; ----------------------------------------------------
+
+(test-case "Select + group"
+           (check-table (group-count (table-groupby old-heroes '(year)))
+                        '(year hero universe)
+                        '((1938 1 1)
+                          (1939 1 1)
+                          (1940 1 1)
+                          (1941 2 2))))
 
 ;; ----------------------------------------------------
 
