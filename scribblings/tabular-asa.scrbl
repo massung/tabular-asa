@@ -102,7 +102,13 @@ It is important to note that - when reading tables - columns that don't already 
                                          (sequenceof hash-eq?))]
                               [columns (listof symbol?) '()])
          table?]{
- Creates and returns a new @racket[table] from either a sequence of rows or a sequence of records.
+ A versatile function that builds a @racket[table] from a sequence of rows or records. Each item in the sequence can be one of the following:
+
+ * A list of values
+ * An associative list of @racket[(col value)] pairs
+ * A @racket[hash-eq?] mapping columns to values
+
+ If the @racket[columns] parameter is supplied, that will be used as the initial set of column names supplied to the @racket[table-builder%]. This can be especially useful when supplying hashes to guarantee the column order.
 }
 
 @defproc[(table-read/columns [seq (sequenceof sequence?)]

@@ -25,12 +25,7 @@
            pre-body ...
 
            ; each body result is a list/row of values
-           (begin0 b
-                   (match (let () post-body ...)
-                     [(? list? row)
-                      (send b add-row row)]
-                     [(? hash? record)
-                      (send b add-record record)]))))]))
+           (begin0 b (send b add-row (let () post-body ...)))))]))
 
 ;; ----------------------------------------------------
 

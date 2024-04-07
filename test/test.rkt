@@ -28,8 +28,11 @@ All rights reserved.
 ;; ----------------------------------------------------
 
 (define (check-table df header rows)
-  (check-true (and (equal? (table-header df) header)
-                   (sequence-equal? (table-rows df) rows))))
+  (check-true (and (equal? (sort header sort-ascending)
+                           (sort (table-header df) sort-ascending))
+
+                   ; ensure all the columns are the same
+                   (sequence-equal? (table-rows (table-cut df header)) rows))))
 
 ;; ----------------------------------------------------
 
@@ -68,26 +71,19 @@ All rights reserved.
 
 ;; ----------------------------------------------------
 
-(define favorite-heroes (table-read/sequence (list (hasheq 'hero "Superman" 'favorite #t)
-                                                   (hasheq 'hero "Batman" 'favorite #t)
-                                                   (hasheq 'hero "Flash" 'favorite #f)
-                                                   (hasheq 'hero "Captain America" 'favorite #t)
-                                                   (hasheq 'hero "Wonder Woman" 'favorite #f)
-                                                   (hasheq 'hero "Fantastic Four" 'favorite #f)
-                                                   (hasheq 'hero "X-Men" 'favorite #f))))
+(define hero-genders (table-read/sequence '(#hasheq([hero . "Superman"] [gender . m])
+                                            ((hero "Batman") (gender m))
+                                            ("Wonder Woman" f))
+                                          '(hero gender)))
 
 ;; ----------------------------------------------------
 
-(test-case "Test table-read/sequence records"
-           (check-table (table-cut favorite-heroes '(hero favorite))  ; hash key order not guaranteed!
-                        '(hero favorite)
-                        '(("Superman" #t)
-                          ("Batman" #t)
-                          ("Flash" #f)
-                          ("Captain America" #t)
-                          ("Wonder Woman" #f)
-                          ("Fantastic Four" #f)
-                          ("X-Men" #f))))
+(test-case "Test table-read/sequence rows and records"
+           (check-table hero-genders
+                        '(hero gender)
+                        '(("Superman" m)
+                          ("Batman" m)
+                          ("Wonder Woman" f))))
 
 ;; ----------------------------------------------------
 
@@ -231,11 +227,6 @@ All rights reserved.
 ;; ----------------------------------------------------
 
 (let* ([df (table-cut heroes '(hero universe))]
-
-       ;
-       ; NOTE: table is cut because reading JSON orders the headers alphabetical!
-       ;
-
        [check-write/read (λ (writer reader)
                            (let* ([s (call-with-output-string writer)]
                                   [table (call-with-input-string s reader)])

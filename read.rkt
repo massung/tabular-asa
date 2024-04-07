@@ -75,12 +75,14 @@ All rights reserved.
     
     ; append a row
     (define/public (add-row xs [ks #f])
-      (for ([k (sequence-append (or ks column-order) new-columns)]
-            [x (in-values-sequence xs)])
-        (match x
-          [(list v) (column-set! k v)]
-          [(list k v) (column-set! k v)]
-          [_ (error "Cannot construct row from ~a" xs)]))
+      (for ([k (sequence-append (or ks column-order) new-columns)] [x xs])
+        (column-set! k x))
+      (grow-table))
+
+    ; append a record
+    (define/public (add-record record)
+      (for ([(k x) record])
+        (column-set! k x))
       (grow-table))
 
     ; build the final table
@@ -94,10 +96,37 @@ All rights reserved.
 
 ;; ----------------------------------------------------
 
+(define (table-read/rows seq [columns '()])
+  (let ([builder (new table-builder% [columns columns])])
+    (for ([r seq])
+      (send builder add-row r))
+    (send builder build)))
+
+;; ----------------------------------------------------
+
+(define (table-read/records seq [columns '()])
+  (let ([builder (new table-builder% [columns columns])])
+    (for ([r seq])
+      (send builder add-record r))
+    (send builder build)))
+
+;; ----------------------------------------------------
+
 (define (table-read/sequence seq [columns '()])
   (let ([builder (new table-builder% [columns columns])])
-    (for ([row seq])
-      (send builder add-row row))
+    (for ([row/rec seq])
+      (match row/rec
+        ; associative list of column/value pairs
+        [(list (list k v) ...) (send builder add-row v k)]
+
+        ; list of in-order column values
+        [(list v ...) (send builder add-row v)]
+
+        ; hash table mapping column -> value
+        [(? hash?) (send builder add-record row/rec)]
+
+        ; cannot map sequence to row or record
+        [_ (error "Cannot construct row or record from ~a" row/rec)]))
     (send builder build)))
 
 ;; ----------------------------------------------------
@@ -111,32 +140,23 @@ All rights reserved.
 ;; ----------------------------------------------------
 
 (define (table-read/jsexpr jsexpr)
-  (let ([builder (new table-builder%
-                      [sort-columns #t])])
-    (match jsexpr
-            
-      ; column-oriented object -- {"col": [x1, x2, ...], ...}
-      [(hash-table (ks (list xs ...)) ...)
-       (letrec ([keys (hash-keys jsexpr)]
+  (match jsexpr
 
-                ; recursively add the rows together
-                [add-rows (λ (cols)
-                            (unless (empty? (first cols))
-                              (send builder add-row (map first cols) keys)
-                              (add-rows (map rest cols))))])
-         (add-rows (hash-values jsexpr)))]
-
-      ; row-oriented list -- [{"col1": x, "col2": y, ...}, ...]
-      [(list records ...)
+    ; column-oriented object -- {"col": [x1, x2, ...], ...}
+    [(? hash?)
+     (for/fold ([df empty-table])
+               ([(key vals) jsexpr])
+       (table-with-column df vals #:as key))]
+    
+    ; row-oriented list -- [{"col1": x, "col2": y, ...}, ...]
+    [(list records ...)
+     (let ([builder (new table-builder% [sort-columns #t])])
        (for ([r records])
-         (send builder add-row r))]
-                
-      ; unknown json orientation
-      [else #f])
-
-    ; construct the table - order the columns by name
-    (let ([df (send builder build)])
-      (table-cut df (sort (table-header df) symbol<?)))))
+         (send builder add-record r))
+       (send builder build))]
+    
+    ; unknown json orientation
+    [else #f]))
 
 ;; ----------------------------------------------------
 
@@ -192,11 +212,13 @@ All rights reserved.
 
 (define (table-read/json port #:lines? [lines #f])
   (if lines
-      (let ([builder (new table-builder% [sort-columns #t])])
+      (let ([builder (new table-builder%)])
         (do ([r (read-json port)
                 (read-json port)])
           [(eof-object? r) (send builder build)]
-          (send builder add-row r)))
+
+          ; each line is an expected record
+          (send builder add-record r)))
 
       ; read the entire json first
       (table-read/jsexpr (read-json port))))
