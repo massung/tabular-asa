@@ -48,12 +48,14 @@ All rights reserved.
     (for ([(i row) (table-cut left on)])
       (let ([ks (index-member ix row)])
         (if ks
-            (let ([left-row (table-row left i)])
+            (let ([left-row (table-irow left i)])
               (for ([j (cdr ks)])
                 (let ([right-row (table-row right j)])
                   (send builder add-row (merge left-row right-row)))))
+
+            ; outer join condition
             (when else
-              (let ([row (else (table-row left i))])
+              (let ([row (else (table-irow left i))])
                 (send builder add-row row))))))
 
     ; build the table

@@ -168,6 +168,36 @@ All rights reserved.
 
 ;; ----------------------------------------------------
 
+(test-case "Join filtered heroes by universe"
+           (check-table (table-join/inner marvel-heroes hero-creators '(hero))
+                        '(hero year universe creator)
+                        '(("Captain America" 1941 "Marvel" "Joe Simon")
+                          ("Fantastic Four" 1961 "Marvel" "Stan Lee")
+                          ("X-Men" 1963 "Marvel" "Stan Lee"))))
+
+;; ----------------------------------------------------
+
+(define stan-lee (table-filter hero-creators (λ (creator) (string=? creator "Stan Lee")) '(creator)))
+
+;; ----------------------------------------------------
+
+(test-case "Inner join heroes with Stan Lee"
+           (check-table (table-join/inner heroes stan-lee '(hero))
+                        '(hero year universe creator)
+                        '(("Fantastic Four" 1961 "Marvel" "Stan Lee")
+                          ("X-Men" 1963 "Marvel" "Stan Lee"))))
+
+;; ----------------------------------------------------
+
+(test-case "Outer join Marvel heroes with Stan Lee"
+           (check-table (table-join/outer marvel-heroes stan-lee '(hero))
+                        '(hero year universe creator)
+                        '(("Captain America" 1941 "Marvel" #f)
+                          ("Fantastic Four" 1961 "Marvel" "Stan Lee")
+                          ("X-Men" 1963 "Marvel" "Stan Lee"))))
+
+;; ----------------------------------------------------
+
 (define hero-universe (table-cut creators-w/hero '(hero universe)))
 (define grouped-heroes (table-groupby hero-universe '(universe)))
 

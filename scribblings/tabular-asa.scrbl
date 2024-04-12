@@ -492,13 +492,13 @@ Tables can also be built at constructed using an instance of @racket[table-build
  Example joining two tables using the same column name:
 
  @racketblock[
-  (table-join/inner df other #:on '(id))
+  (table-join/inner df other '(id))
  ]
 
  Example joining two tables with different column names:
 
  @racketblock[
-  (table-join/inner df other #:on '(name gender) #:with '(surname sex))
+  (table-join/inner df other '(name gender) #:with '(surname sex))
  ]
 
  If the @racket[on] and @racket[with] parameters are of different lengths, no error will be triggered and an empty table will be returned as all comparisons will fail. 
