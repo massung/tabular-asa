@@ -281,3 +281,22 @@ All rights reserved.
   (test-case "Writing JSON lines"
              (check-write/read (λ (port) (table-write/json df port #:lines? #t))
                                (λ (port) (table-read/json port #:lines? #t)))))
+
+
+;; --- misc other tests?
+
+
+(check-not-exn
+ (λ ()
+   (table-with-column
+    (table-with-column empty-table '() #:as 'a)
+    '() #:as 'b)))
+
+(check-equal?
+ (sequence->list
+  (table-column
+   (table-with-column
+    (table-with-column empty-table '() #:as 'a)
+    '() #:as 'b)
+   'b))
+ '())
