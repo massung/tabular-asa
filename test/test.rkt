@@ -256,6 +256,15 @@ All rights reserved.
 
 ;; ----------------------------------------------------
 
+(test-case "Add column to empty table"
+           (check-table (table-with-column empty-table '(1 2 3) #:as 'a)
+                        '(a)
+                        '((1)
+                          (2)
+                          (3))))
+
+;; ----------------------------------------------------
+
 (let* ([df (table-cut heroes '(hero universe))]
        [check-write/read (λ (writer reader)
                            (let* ([s (call-with-output-string writer)]

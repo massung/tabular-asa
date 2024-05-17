@@ -52,6 +52,13 @@ All rights reserved.
 
 ;; ----------------------------------------------------
 
+(define (table-index-size df)
+  (if (table-empty? df)
+      0
+      (vector-argmax identity (table-index df))))
+
+;; ----------------------------------------------------
+
 (define (table-shape df)
   (values (table-length df) (length (table-data df))))
 
@@ -112,7 +119,7 @@ All rights reserved.
                (list (cons as (column-data col)))))
 
       ; create a new data vector using the existing index
-      (let ([v (make-vector (+ (vector-argmax identity (table-index df)) 1) #f)])
+      (let ([v (make-vector (+ (table-index-size df) 1) #f)])
         (for ([i (table-index df)] [x seq])
           (vector-set! v i x))
 
