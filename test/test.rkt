@@ -256,12 +256,11 @@ All rights reserved.
 
 ;; ----------------------------------------------------
 
-(test-case "Add column to empty table"
-           (check-table (table-with-column empty-table '(1 2 3) #:as 'a)
-                        '(a)
-                        '((1)
-                          (2)
-                          (3))))
+(test-case "Add column to table with columns and no rows"
+           (let ([zero-rows-table (table-with-column empty-table '() #:as 'a)])
+             (check-table (table-with-column zero-rows-table '(1 2) #:as 'b)
+                          '(a b)
+                          '())))
 
 ;; ----------------------------------------------------
 
