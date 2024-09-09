@@ -477,6 +477,7 @@ Tables can also be built at constructed using an instance of @racket[table-build
                          [keep (or/c 'first 'last 'none) 'first])
          table?]{
  Returns a new table removing duplicate rows where all the columns specified in @racket[ks] are @racket[equal?].
+ When @racket[ks] is @racket[#f], all columns are compared.
 }
 
 @defproc[(table-join/inner [df table?]
@@ -518,7 +519,7 @@ Tables can also be built at constructed using an instance of @racket[table-build
 @section{Printing Tables}
 
 @defparam[pretty-print-rows rows (or/c exact-nonnegative-integer? #f) #:value 10]{
-  Controls the nmaximum umber of rows output by @racket[write-table]. If set to @racket[#f] then there is no limit and all rows will be printed.
+  Controls the maximum number of rows output by @racket[write-table]. If set to @racket[#f] then there is no limit and all rows will be printed.
 }
 
 @defproc[(write-table [df table?]
@@ -526,7 +527,12 @@ Tables can also be built at constructed using an instance of @racket[table-build
                       [mode boolean? #t]
                       [#:keep-index? keep-index boolean? #t])
          void?]{
- Pretty prints a maximum of @racket[pretty-print-rows] rows of @racket[df] to @racket[port]. If the table contains more rows then the head and the tail of the table is output. If @racket[keep-index] is @racket[#t] then the index column is also output as well.
+ Pretty prints a maximum of @racket[pretty-print-rows] rows of @racket[df] to @racket[port].
+ If the table contains more rows than this, then the head and the tail of the table are output, and intermediate rows are elided.
+
+ If @racket[mode] is #t, the table elements are printed in the style of print. If it is false, they are printed in the style of display.
+
+ If @racket[keep-index] is @racket[#t] then the index column is also output as well.
 }
 
 @defproc[(print-table [df table?]
