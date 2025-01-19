@@ -453,7 +453,8 @@ Tables can also be built at constructed using an instance of @racket[table-build
                         [ks (non-empty-listof symbol?)]
                         [less-than? (or/c (any/c any/c -> boolean?) #f) sort-ascending])
          (sequence/c (listof (list/c symbol? any/c)) table?)]{
- Creates and returns a sequence of reference indices grouped by the columns in @racket[ks]. Each iteration of the sequence returns two values: an associative list of the group in @racket[(k value)] form and the subtable of all rows for that group. If @racket[less-than?] is @racket[#f] then the groups are returned in the whatever order they appeared in the source table.
+ Creates and returns a sequence of reference indices grouped by the columns in @racket[ks]. Each iteration of the sequence returns two values: an associative list of the group in @racket[(k value)] form and the subtable of all rows for that group. If @racket[less-than?] is @racket[#f] then the groups are returned in the whatever order they appeared in the source table. The ordering
+ of the rows within the resulting subtables is the same as their ordering within the original table.
 }
 
 @defproc[(table-drop-na [df table?]
