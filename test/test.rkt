@@ -9,7 +9,12 @@ All rights reserved.
 
 |#
 
-(require rackunit)
+(require rackunit
+         racket/runtime-path)
+
+;; ----------------------------------------------------
+
+(define-runtime-path here ".")
 
 ;; ----------------------------------------------------
 
@@ -36,7 +41,7 @@ All rights reserved.
 
 ;; ----------------------------------------------------
 
-(define heroes (call-with-input-file "heroes.csv" table-read/csv))
+(define heroes (call-with-input-file (build-path here "heroes.csv") table-read/csv))
 
 ;; ----------------------------------------------------
 
@@ -53,7 +58,8 @@ All rights reserved.
 
 ;; ----------------------------------------------------
 
-(define hero-creators (call-with-input-file "creators.json" table-read/json))
+(define hero-creators (call-with-input-file (build-path here "creators.json")
+                        table-read/json))
 
 ;; ----------------------------------------------------
 

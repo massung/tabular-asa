@@ -11,9 +11,12 @@ All rights reserved.
 
 (require plot)
 (require tabular-asa)
+(require racket/runtime-path)
+
+(define-runtime-path here ".")
 
 ; load a CSV file into a dataframe
-(define books (call-with-input-file "books.csv" table-read/csv))
+(define books (call-with-input-file (build-path here "books.csv") table-read/csv))
 
 ; keep only the genre and title columns
 (define genre-title (table-cut books '(Genre Title)))
