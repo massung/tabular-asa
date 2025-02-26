@@ -264,7 +264,7 @@ Tables can also be built at constructed using an instance of @racket[table-build
 
   @verbatim|{#<table [359 rows x 8 cols]>}|
 
-  However, if you may supply your own function, or even replace it with @racket[display-table] or @racket[print-table] if you always want to see a preview of the table on the REPL.
+  However, if you may supply your own function, or even replace it with @racket[format-table] if you always want to see a preview of the table on the REPL.
 }
 
 @defproc[(table-length [df table?]) exact-nonnegative-integer?]{
@@ -522,10 +522,10 @@ Tables can also be built at constructed using an instance of @racket[table-build
   Controls the maximum number of rows output by @racket[write-table]. If set to @racket[#f] then there is no limit and all rows will be printed.
 }
 
-@defproc[(write-table [df table?]
-                      [port output-port? (current-output-port)]
-                      [mode boolean? #t]
-                      [#:keep-index? keep-index boolean? #t])
+@defproc[(format-table [df table?]
+                       [port output-port?]
+                       [mode boolean?]
+                       [#:keep-index? keep-index boolean? #t])
          void?]{
  Pretty prints a maximum of @racket[pretty-print-rows] rows of @racket[df] to @racket[port].
  If the table contains more rows than this, then the head and the tail of the table are output, and intermediate rows are elided.
@@ -539,14 +539,14 @@ Tables can also be built at constructed using an instance of @racket[table-build
                       [port output-port? (current-output-port)]
                       [#:keep-index? keep-index boolean? #t])
          void?]{
- Calls @racket[write-table] with the mode set to @racket[#t].
+ Calls @racket[format-table] with the mode set to @racket[#t].
 }
 
 @defproc[(display-table [df table?]
                         [port output-port? (current-output-port)]
                         [#:keep-index? keep-index boolean? #t])
          void?]{
- Calls @racket[write-table] with the mode set to @racket[#f].
+ Calls @racket[format-table] with the mode set to @racket[#f].
 }
 
 

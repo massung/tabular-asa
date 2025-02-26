@@ -15,9 +15,9 @@ All rights reserved.
 ;; ----------------------------------------------------
 
 (provide pretty-print-rows
+         format-table
          print-table
-         display-table
-         write-table)
+         display-table)
 
 ;; ----------------------------------------------------
 
@@ -63,11 +63,17 @@ All rights reserved.
 
 ;; ----------------------------------------------------
 
-(define (write-table df
-                     [port (current-output-port)]
-                     [repr ~a]
-                     #:keep-index? [keep-index #t])
-  (let* ([index-format (column-formatter '|| (index-preview df) repr)]
+(define (format-table-shape df port)
+  (let-values ([(rows cols) (table-shape df)])
+    (fprintf port "[~a rows x ~a cols]" rows cols)))
+
+;; ----------------------------------------------------
+
+(define (format-table df port mode #:keep-index? [keep-index #t])
+  (let* ([repr (if mode ~v ~a)]
+
+         ; how to display the index column
+         [index-format (column-formatter '|| (index-preview df) repr)]
 
          ; formatters for each column
          [column-formats (for/list ([k (table-header df)])
@@ -93,19 +99,14 @@ All rights reserved.
 
     ; output the shape of the table
     (newline port)
-    (fprintf port "[~a rows x ~a cols]"
-             (table-length df)
-             (length (table-data df)))
-
-    ; done
-    (newline port)))
+    (format-table-shape df port)))
 
 ;; ----------------------------------------------------
 
-(define (display-table df [port (current-output-port)] #:keep-index? [keep-index #t])
-  (write-table df port ~a #:keep-index? keep-index))
+(define (display-table df [port (current-output-port)] [mode #f] #:keep-index? [keep-index #t])
+  (format-table df port #f #:keep-index? keep-index))
 
 ;; ----------------------------------------------------
 
-(define (print-table df [port (current-output-port)] #:keep-index? [keep-index #t])
-  (write-table df port ~v #:keep-index? keep-index))
+(define (print-table df [port (current-output-port)] [mode #t] #:keep-index? [keep-index #t])
+  (format-table df port #t #:keep-index? keep-index))

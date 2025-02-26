@@ -169,6 +169,7 @@ All rights reserved.
                         #:double-quote? [double-quote #t]
                         #:comment-char [comment #\#]
                         #:strip? [strip #f]
+                        #:readers [readers (list string->number)]
                         #:na [na #f]
                         #:na-values [na-values (list "" "-" "." "na" "n/a" "nan" "null")])
   (let* ([spec `((separator-chars ,sep)
@@ -199,7 +200,7 @@ All rights reserved.
          ; parse cells, look for n/a as well
          [parse-row (λ (r)
                       (for/list ([x r])
-                        (let ([n (string->number x)])
+                        (let ([n (for/first [(f readers)] (f x))])
                           (cond
                             [n n]
                             [(member x na-values string-ci=?) na]
