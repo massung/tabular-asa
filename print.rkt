@@ -103,10 +103,10 @@ All rights reserved.
 
 ;; ----------------------------------------------------
 
-(define (display-table df [port (current-output-port)] [mode #f] #:keep-index? [keep-index #t])
+(define (display-table df [port (current-output-port)] #:keep-index? [keep-index #t])
   (format-table df port #f #:keep-index? keep-index))
 
 ;; ----------------------------------------------------
 
-(define (print-table df [port (current-output-port)] [mode #t] #:keep-index? [keep-index #t])
+(define (print-table df [port (current-output-port)] #:keep-index? [keep-index #t])
   (format-table df port #t #:keep-index? keep-index))
