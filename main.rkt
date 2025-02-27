@@ -64,6 +64,7 @@ All rights reserved.
  ; table
  (struct-out table)
  empty-table
+ table-preview-shape
  table-preview
  table-length
  table-shape
@@ -128,17 +129,11 @@ All rights reserved.
  for/table
 
  ; print
+ format-table
  display-table
  print-table
- write-table
 
  ; write
  table-write/csv
  table-write/json
  table-write/string)
-
-;; ----------------------------------------------------
-
-(table-preview (let ([old-preview (table-preview)])
-                 (λ (df port mode)
-                   (display-table df port))))

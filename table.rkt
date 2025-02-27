@@ -36,10 +36,13 @@ All rights reserved.
 
 ;; ----------------------------------------------------
 
-(define table-preview
-  (make-parameter (λ (df port mode)
-                    (let-values ([(rows cols) (table-shape df)])
-                      (fprintf port "#<table [~a rows x ~a cols]>" rows cols)))))
+(define (table-preview-shape df [port (current-output-port)] [mode #f])
+  (let-values ([(rows cols) (table-shape df)])
+    (fprintf port "[~a rows x ~a cols]" rows cols)))
+
+;; ----------------------------------------------------
+
+(define table-preview (make-parameter table-preview-shape))
 
 ;; ----------------------------------------------------
 

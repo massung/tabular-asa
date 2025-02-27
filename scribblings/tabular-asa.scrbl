@@ -139,6 +139,7 @@ It is important to note that - when reading tables - columns that don't already 
                          [#:double-quote? double-quote char? #t]
                          [#:comment-char comment char? #\#]
                          [#:strip? strip boolean? #f]
+                         [#:readers readers (listof function?) (list string->number)]
                          [#:na na any/c #f]
                          [#:na-values na-values (listof string?) (list "" "-" "." "na" "n/a" "nan" "null")])
          table?]{
@@ -146,9 +147,11 @@ It is important to note that - when reading tables - columns that don't already 
 
  The @racket[header] argument - if @racket[#t] - indicates that the first non-comment row of the CSV should be treated as the list of column names. If @racket[#f] then the column names will be generated as needed.
 
- The @racket[drop-index] arugment - if @racket[#t] - assumes that the first column of the CSV is the row index (i.e., an auto-incrementing integer) and shouldn't be kept. If there is a row index column, and it is not dropped, it's important to note that it will be treated just like any other column and is NOT used as the table's index.
-
+ The @racket[drop-index] argument - if @racket[#t] - assumes that the first column of the CSV is the row index (i.e., an auto-incrementing integer) and shouldn't be kept. If there is a row index column, and it is not dropped, it's important to note that it will be treated just like any other column and is NOT used as the table's index.
+ 
  The @racket[na-values] argument is a list of strings that - when parsed as the value for a given cell - are replaced with the @racket[na] value to indicate N/A (not available). The values in this list are case-insensitive.
+ 
+ The @racket[readers] argument - since CSVs are untyped, this is the list of type transforms that will be attempted on every cell, in order. The first one to successfully return a value will be the value in the cell. If none succeed, then the type of the cell is just a string. You can override this list to include functions from other packages like @racket[iso8601->date]. Similarly, you can supply an empty list to ensure all cells are either strings or the @racket[na] value. It should be noted that this list of transform readers is applied to all columns. In the future this may change to allow a @racket[hash], where each column can have its own list of transform readers.
 }
 
 @defproc[(table-read/json [port input-port?]
@@ -258,13 +261,21 @@ Tables can also be built at constructed using an instance of @racket[table-build
  An immutable, empty table. Useful for building a table from scratch using @racket[table-with-column] or returning from a function in failure cases, etc.
 }
 
+@defproc[(table-preview-shape [df table?]
+                              [port output-port?]
+                              [mode boolean?])
+         void?]{
+ Prints the shape of the table to the given port on a single line like so:
+
+ @verbatim|{[359 rows x 8 cols]}|.
+
+ The @racket[mode] argument is currently ignored.
+}
 
 @defparam[table-preview proc (table? output-port? -> void?) #:value procedure?]{
-  Controls how tables are previewed on the REPL. The default function, simply prints the @racket[table-shape] on a single line like so:
+  Controls how tables are previewed on the REPL. The default function is @racket[table-preview-shape].
 
-  @verbatim|{#<table [359 rows x 8 cols]>}|
-
-  However, if you may supply your own function, or even replace it with @racket[display-table] or @racket[print-table] if you always want to see a preview of the table on the REPL.
+  You may supply your own function, or even replace it with @racket[format-table] if you always want to see a preview of the table on the REPL.
 }
 
 @defproc[(table-length [df table?]) exact-nonnegative-integer?]{
@@ -522,10 +533,10 @@ Tables can also be built at constructed using an instance of @racket[table-build
   Controls the maximum number of rows output by @racket[write-table]. If set to @racket[#f] then there is no limit and all rows will be printed.
 }
 
-@defproc[(write-table [df table?]
-                      [port output-port? (current-output-port)]
-                      [mode boolean? #t]
-                      [#:keep-index? keep-index boolean? #t])
+@defproc[(format-table [df table?]
+                       [port output-port?]
+                       [mode boolean?]
+                       [#:keep-index? keep-index boolean? #t])
          void?]{
  Pretty prints a maximum of @racket[pretty-print-rows] rows of @racket[df] to @racket[port].
  If the table contains more rows than this, then the head and the tail of the table are output, and intermediate rows are elided.
@@ -539,14 +550,14 @@ Tables can also be built at constructed using an instance of @racket[table-build
                       [port output-port? (current-output-port)]
                       [#:keep-index? keep-index boolean? #t])
          void?]{
- Calls @racket[write-table] with the mode set to @racket[#t].
+ Calls @racket[format-table] with the mode set to @racket[#t].
 }
 
 @defproc[(display-table [df table?]
                         [port output-port? (current-output-port)]
                         [#:keep-index? keep-index boolean? #t])
          void?]{
- Calls @racket[write-table] with the mode set to @racket[#f].
+ Calls @racket[format-table] with the mode set to @racket[#f].
 }
 
 
