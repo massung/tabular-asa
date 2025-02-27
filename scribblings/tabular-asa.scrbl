@@ -139,6 +139,7 @@ It is important to note that - when reading tables - columns that don't already 
                          [#:double-quote? double-quote char? #t]
                          [#:comment-char comment char? #\#]
                          [#:strip? strip boolean? #f]
+                         [#:readers readers (listof function?) (list string->number)]
                          [#:na na any/c #f]
                          [#:na-values na-values (listof string?) (list "" "-" "." "na" "n/a" "nan" "null")])
          table?]{
@@ -146,9 +147,11 @@ It is important to note that - when reading tables - columns that don't already 
 
  The @racket[header] argument - if @racket[#t] - indicates that the first non-comment row of the CSV should be treated as the list of column names. If @racket[#f] then the column names will be generated as needed.
 
- The @racket[drop-index] arugment - if @racket[#t] - assumes that the first column of the CSV is the row index (i.e., an auto-incrementing integer) and shouldn't be kept. If there is a row index column, and it is not dropped, it's important to note that it will be treated just like any other column and is NOT used as the table's index.
-
+ The @racket[drop-index] argument - if @racket[#t] - assumes that the first column of the CSV is the row index (i.e., an auto-incrementing integer) and shouldn't be kept. If there is a row index column, and it is not dropped, it's important to note that it will be treated just like any other column and is NOT used as the table's index.
+ 
  The @racket[na-values] argument is a list of strings that - when parsed as the value for a given cell - are replaced with the @racket[na] value to indicate N/A (not available). The values in this list are case-insensitive.
+ 
+ The @racket[readers] argument - since CSVs are untyped, this is the list of type transforms that will be attempted on every cell, in order. The first one to successfully return a value will be the value in the cell. If none succeed, then the type of the cell is just a string. You can override this list to include functions from other packages like @racket[iso8601->date]. Similarly, you can supply an empty list to ensure all cells are either strings or the @racket[na] value. It should be noted that this list of transform readers is applied to all columns. In the future this may change to allow a @racket[hash], where each column can have its own list of transform readers.
 }
 
 @defproc[(table-read/json [port input-port?]
