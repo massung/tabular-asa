@@ -17,7 +17,7 @@ All rights reserved.
 
 ;; ----------------------------------------------------
 
-(table-preview display-table)
+(table-preview format-table)
 
 ;; ----------------------------------------------------
 
