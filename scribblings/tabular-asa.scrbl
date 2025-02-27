@@ -269,7 +269,7 @@ Tables can also be built at constructed using an instance of @racket[table-build
 
  @verbatim|{[359 rows x 8 cols]}|.
 
- If @racket[mode] is @racket[#t] then the shape is wrapped with @verbatim|{#<table ...>}|.
+ The @racket[mode] argument is currently ignored.
 }
 
 @defparam[table-preview proc (table? output-port? -> void?) #:value procedure?]{

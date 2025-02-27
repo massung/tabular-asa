@@ -38,9 +38,7 @@ All rights reserved.
 
 (define (table-preview-shape df [port (current-output-port)] [mode #f])
   (let-values ([(rows cols) (table-shape df)])
-    (if mode
-        (fprintf port "#<table [~a rows x ~a cols]>" rows cols)
-        (fprintf port "[~a rows x ~a cols]" rows cols))))
+    (fprintf port "[~a rows x ~a cols]" rows cols)))
 
 ;; ----------------------------------------------------
 
