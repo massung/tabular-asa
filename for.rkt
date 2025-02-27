@@ -25,7 +25,10 @@
            pre-body ...
 
            ; each body result is a list/row of values
-           (begin0 b (send b add-row (let () post-body ...)))))]))
+           (let ([xs (let () post-body ...)])
+             (begin0 b (if (hash? xs)
+                           (send b add-record xs)
+                           (send b add-row xs))))))]))
 
 ;; ----------------------------------------------------
 
