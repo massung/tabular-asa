@@ -64,6 +64,7 @@ All rights reserved.
  ; table
  (struct-out table)
  empty-table
+ table-preview-shape
  table-preview
  table-length
  table-shape

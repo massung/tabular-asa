@@ -261,13 +261,21 @@ Tables can also be built at constructed using an instance of @racket[table-build
  An immutable, empty table. Useful for building a table from scratch using @racket[table-with-column] or returning from a function in failure cases, etc.
 }
 
+@defproc[(table-preview-shape [df table?]
+                              [port output-port?]
+                              [mode boolean?])
+         void?]{
+ Prints the shape of the table to the given port on a single line like so:
+
+ @verbatim|{[359 rows x 8 cols]}|.
+
+ If @racket[mode] is @racket[#t] then the shape is wrapped with @verbatim|{#<table ...>}|.
+}
 
 @defparam[table-preview proc (table? output-port? -> void?) #:value procedure?]{
-  Controls how tables are previewed on the REPL. The default function, simply prints the @racket[table-shape] on a single line like so:
+  Controls how tables are previewed on the REPL. The default function is @racket[table-preview-shape].
 
-  @verbatim|{#<table [359 rows x 8 cols]>}|
-
-  However, if you may supply your own function, or even replace it with @racket[format-table] if you always want to see a preview of the table on the REPL.
+  You may supply your own function, or even replace it with @racket[format-table] if you always want to see a preview of the table on the REPL.
 }
 
 @defproc[(table-length [df table?]) exact-nonnegative-integer?]{

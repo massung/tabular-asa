@@ -63,12 +63,6 @@ All rights reserved.
 
 ;; ----------------------------------------------------
 
-(define (format-table-shape df port)
-  (let-values ([(rows cols) (table-shape df)])
-    (fprintf port "[~a rows x ~a cols]" rows cols)))
-
-;; ----------------------------------------------------
-
 (define (format-table df port mode #:keep-index? [keep-index #t])
   (let* ([repr (if mode ~v ~a)]
 
@@ -99,7 +93,7 @@ All rights reserved.
 
     ; output the shape of the table
     (newline port)
-    (format-table-shape df port)))
+    (table-preview-shape df port #f)))
 
 ;; ----------------------------------------------------
 
