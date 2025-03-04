@@ -139,7 +139,7 @@ It is important to note that - when reading tables - columns that don't already 
                          [#:double-quote? double-quote char? #t]
                          [#:comment-char comment char? #\#]
                          [#:strip? strip boolean? #f]
-                         [#:readers readers (listof function?) (list string->number)]
+                         [#:readers readers (listof (string? -> any/c)) (list string->number)]
                          [#:na na any/c #f]
                          [#:na-values na-values (listof string?) (list "" "-" "." "na" "n/a" "nan" "null")])
          table?]{
