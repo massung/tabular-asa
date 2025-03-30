@@ -75,6 +75,8 @@ All rights reserved.
                                             [_ #f]))])
                      (table-read/csv port #:readers (list string->number string->digit))))))
 
+;; ----------------------------------------------------
+
 (test-case "CSV with custom readers"
            (check-table digits '(digit) (for/list [(i (range 1 11))] (list i))))
 
