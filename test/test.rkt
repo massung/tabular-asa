@@ -58,6 +58,28 @@ All rights reserved.
 
 ;; ----------------------------------------------------
 
+(define digits (call-with-input-file (build-path here "digits.csv")
+                 (λ (port)
+                   (let ([string->digit (λ (s)
+                                          (match s
+                                            ["one" 1]
+                                            ["two" 2]
+                                            ["three" 3]
+                                            ["four" 4]
+                                            ["five" 5]
+                                            ["six" 6]
+                                            ["seven" 7]
+                                            ["eight" 8]
+                                            ["nine" 9]
+                                            ["ten" 10]
+                                            [_ #f]))])
+                     (table-read/csv port #:readers (list string->number string->digit))))))
+
+(test-case "CSV with custom readers"
+           (check-table digits '(digit) (for/list [(i (range 1 11))] (list i))))
+
+;; ----------------------------------------------------
+
 (define hero-creators (call-with-input-file (build-path here "creators.json") table-read/json))
 
 ;; ----------------------------------------------------

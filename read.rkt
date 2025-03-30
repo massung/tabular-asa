@@ -200,7 +200,7 @@ All rights reserved.
          ; parse cells, look for n/a as well
          [parse-row (λ (r)
                       (for/list ([x r])
-                        (let ([n (for/first [(f readers)] (f x))])
+                        (let ([n (for/or [(f readers)] (f x))])
                           (cond
                             [n n]
                             [(member x na-values string-ci=?) na]
