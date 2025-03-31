@@ -177,6 +177,18 @@ All rights reserved.
                         '(("Wonder Woman" 1941 "DC" "William Marston")
                           ("X-Men" 1963 "Marvel" "Stan Lee"))))
 
+
+(test-case "Test distinct / first"
+           (check-table (table-distinct heroes-w/creator '(universe) 'first)
+                        '(hero year universe creator)
+                        '(("Superman" 1938 "DC" "Jerry Siegel")
+                          ("Captain America" 1941 "Marvel" "Joe Simon"))))
+
+(test-case "Test distinct / none"
+           (check-table (table-distinct heroes-w/creator '(universe) 'none)
+                        '(hero year universe creator)
+                        '()))
+
 ;; ----------------------------------------------------
 
 (define creators-w/hero (table-join/outer hero-creators heroes '(hero)))
