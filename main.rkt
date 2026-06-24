@@ -132,6 +132,7 @@ All rights reserved.
  format-table
  display-table
  print-table
+ pretty-print-rows
 
  ; write
  table-write/csv
