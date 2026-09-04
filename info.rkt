@@ -1,7 +1,7 @@
 #lang info
 
 (define collection "tabular-asa")
-(define version "0.4.4")
+(define version "0.4.5")
 (define pkg-authors '("massung@gmail.com"))
 (define pkg-desc "A fast, efficient, immutable, dataframes implementation")
 (define license 'MIT)
