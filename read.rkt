@@ -120,7 +120,10 @@ All rights reserved.
         [(list (list k v) ...) (send builder add-row v k)]
 
         ; list of in-order column values
-        [(list v ...) (send builder add-row v)]
+        [(? list?) (send builder add-row row/rec)]
+
+        ; vector of in-order column values
+        [(? vector?) (send builder add-row row/rec)]
 
         ; hash table mapping column -> value
         [(? hash?) (send builder add-record row/rec)]
