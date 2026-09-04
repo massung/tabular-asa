@@ -11,6 +11,7 @@ All rights reserved.
 
 (require rackunit)
 (require racket/runtime-path)
+(require (for-syntax syntax/parse))
 
 ;; ----------------------------------------------------
 
@@ -28,12 +29,15 @@ All rights reserved.
 
 ;; ----------------------------------------------------
 
-(define (check-table df header rows)
-  (check-true (and (equal? (sort header sort-ascending)
-                           (sort (table-header df) sort-ascending))
+(define-syntax (check-table stx)
+  (syntax-parse stx
+    [(_ df header rows)
+     (syntax/loc stx
+       (check-true (and (equal? (sort header sort-ascending)
+                                (sort (table-header df) sort-ascending))
 
-                   ; ensure all the columns are the same
-                   (sequence-equal? (table-rows (table-cut df header)) rows))))
+                        ; ensure all the columns are the same
+                        (sequence-equal? (table-rows (table-cut df header)) rows))))]))
 
 ;; ----------------------------------------------------
 
@@ -100,19 +104,32 @@ All rights reserved.
 
 ;; ----------------------------------------------------
 
-(define hero-genders (table-read/sequence '(#hasheq([hero . "Superman"] [gender . m])
-                                            ((hero "Batman") (gender m))
-                                            ("Wonder Woman" f))
-                                          '(hero gender)))
+(define hero-gender-rows
+  '(("Superman" m)
+    ("Batman" m)
+    ("Wonder Woman" f)))
+(define hero-gender-header '(hero gender))
 
-;; ----------------------------------------------------
 
-(test-case "Test table-read/sequence rows and records"
-           (check-table hero-genders
-                        '(hero gender)
-                        '(("Superman" m)
-                          ("Batman" m)
-                          ("Wonder Woman" f))))
+(test-case "Test table-read/sequence from hash"
+           (check-table (table-read/sequence '(#hasheq([hero . "Superman"] [gender . m])
+                                               ((hero "Batman") (gender m))
+                                               ("Wonder Woman" f))
+                                             hero-gender-header)
+                        hero-gender-header
+                        hero-gender-rows))
+
+(test-case "Test table-read/sequence from lists"
+           (check-table (table-read/sequence hero-gender-rows
+                                             hero-gender-header)
+                        hero-gender-header
+                        hero-gender-rows))
+
+(test-case "Test table-read/sequence from vectors"
+           (check-table (table-read/sequence (map list->vector hero-gender-rows)
+                                             hero-gender-header)
+                        hero-gender-header
+                        hero-gender-rows))
 
 ;; ----------------------------------------------------
 
