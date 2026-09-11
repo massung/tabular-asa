@@ -29,7 +29,8 @@ All rights reserved.
     ; initialization
     (init-field [initial-size 5000]
                 [columns '()]
-                [sort-columns #f])
+                [sort-columns #f]
+                [allow-extra-columns #t])
 
     ; initial columns from header
     (define column-data (make-hasheq))
@@ -75,7 +76,13 @@ All rights reserved.
     
     ; append a row
     (define/public (add-row xs [ks #f])
-      (for ([k (sequence-append (or ks column-order) new-columns)] [x xs])
+      (define expected-columns (or ks column-order))
+      (when (and (not allow-extra-columns)
+                 (not (<= (sequence-length xs)
+                          (sequence-length expected-columns))))
+        (error 'add-row "expected row with number of columns <= header cols, got: ~e"
+               xs))
+      (for ([k (sequence-append expected-columns new-columns)] [x xs])
         (column-set! k x))
       (grow-table))
 
@@ -112,8 +119,10 @@ All rights reserved.
 
 ;; ----------------------------------------------------
 
-(define (table-read/sequence seq [columns '()])
-  (let ([builder (new table-builder% [columns columns])])
+(define (table-read/sequence seq [columns '()] [allow-extra-columns #t])
+  (let ([builder (new table-builder%
+                      [columns columns]
+                      [allow-extra-columns allow-extra-columns])])
     (for ([row/rec seq])
       (match row/rec
         ; associative list of column/value pairs
@@ -174,7 +183,8 @@ All rights reserved.
                         #:strip? [strip #f]
                         #:readers [readers (list string->number)]
                         #:na [na #f]
-                        #:na-values [na-values (list "" "-" "." "na" "n/a" "nan" "null")])
+                        #:na-values [na-values (list "" "-" "." "na" "n/a" "nan" "null")]
+                        #:allow-extra-columns [allow-extra-columns #t])
   (let* ([spec `((separator-chars ,sep)
                  (newline-type . ,newline)
                  (quote-char . ,quote)
@@ -210,7 +220,7 @@ All rights reserved.
                             [else x]))))])
 
     ; read each row into a new table
-    (table-read/sequence (csv-map parse-row next-row) columns)))
+    (table-read/sequence (csv-map parse-row next-row) columns allow-extra-columns)))
 
 ;; ----------------------------------------------------
 
