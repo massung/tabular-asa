@@ -33,11 +33,12 @@ All rights reserved.
   (syntax-parse stx
     [(_ df header rows)
      (syntax/loc stx
-       (check-true (and (equal? (sort header sort-ascending)
-                                (sort (table-header df) sort-ascending))
+       (begin
+         (check-equal? (sort header sort-ascending)
+                       (sort (table-header df) sort-ascending))
+         (check sequence-equal? (table-rows (table-cut df header)) rows)))]))
 
-                        ; ensure all the columns are the same
-                        (sequence-equal? (table-rows (table-cut df header)) rows))))]))
+
 
 ;; ----------------------------------------------------
 
@@ -59,6 +60,24 @@ All rights reserved.
                           ("Wonder Woman" 1941 "DC")
                           ("Fantastic Four" 1961 "Marvel")
                           ("X-Men" 1963 "Marvel"))))
+
+;; ----------------------------------------------------
+
+(test-case "CSV with long row"
+           (define long-row-table
+             (call-with-input-file (build-path here "long-row.csv")
+               table-read/csv))
+           (define extra-column (set-subtract (table-header long-row-table)
+                                              '(hero year universe)))
+           (check-true (and (list? extra-column)
+                            (= (length extra-column) 1))))
+
+(test-case "CSV with disallowed long row"
+           (check-exn #px"expected row with number of columns matching header"
+                      (λ ()
+                        (call-with-input-file (build-path here "long-row.csv")
+                          (λ (p)
+                            (table-read/csv p #:allow-extra-columns #f))))))
 
 ;; ----------------------------------------------------
 
@@ -130,6 +149,14 @@ All rights reserved.
                                              hero-gender-header)
                         hero-gender-header
                         hero-gender-rows))
+
+(test-case "Test table with row too long"
+           (check-exn #px"expected row with number of columns matching header"
+                      (λ ()
+                        (table-read/sequence (append hero-gender-rows
+                                                     '(("way" "too" "many" "strings" "in" "row")))
+                                             hero-gender-header
+                                             #f))))
 
 ;; ----------------------------------------------------
 
